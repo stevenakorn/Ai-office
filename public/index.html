@@ -110,6 +110,10 @@ aside{display:flex;flex-direction:column;gap:12px;position:sticky;top:12px}
 #tv[hidden],.tvbar[hidden]{display:none}
 #tv iframe{width:560px;height:350px;border:0;display:block;background:#000}
 .tvbar{position:absolute;left:10px;bottom:10px;display:flex;gap:6px;align-items:center;background:rgba(14,15,20,.85);border:1px solid var(--line);border-radius:999px;padding:4px 6px 4px 12px;font-size:12px}
+.tvbar{flex-wrap:wrap;max-width:calc(100% - 20px)}
+.tvbar input[type=range]{width:90px;accent-color:var(--accent)}
+.voltxt{font-family:var(--mono);min-width:22px;color:var(--muted)}
+.tvhint{color:var(--warn)}
 .tvbar button{background:#1d2028;border:1px solid var(--line);border-radius:999px;padding:2px 10px;font-size:12px;cursor:pointer;color:var(--ink)}
 .tvbar button:hover{border-color:var(--muted)}
 #tvDlg input{width:100%}
@@ -137,7 +141,7 @@ aside{display:flex;flex-direction:column;gap:12px;position:sticky;top:12px}
       <div class="stats" id="stats"></div>
       <div class="stage" id="stage"><canvas id="office" width="780" height="540" aria-label="等角視角的辦公室，AI 員工在裡面走動與工作"></canvas>
         <div id="tv" hidden><iframe id="tvFrame" title="辦公室電視" allow="autoplay; encrypted-media; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div>
-        <div class="tvbar" id="tvBar" hidden><span>📺 電視播放中</span><button type="button" id="tvBigBtn">放大看</button><button type="button" id="tvChange">換頻道</button><button type="button" id="tvOff">關電視</button></div>
+        <div class="tvbar" id="tvBar" hidden><span>📺</span><button type="button" id="tvMute" aria-label="靜音切換">🔊</button><label class="vh" for="tvVol">音量</label><input type="range" id="tvVol" min="0" max="100" step="1" value="60"><span id="tvVolTxt" class="voltxt">60</span><button type="button" id="tvBigBtn">放大看</button><button type="button" id="tvChange">換頻道</button><button type="button" id="tvOff">關電視</button></div>
       </div>
       <div class="cards" id="cards"></div>
     </main>
@@ -173,7 +177,7 @@ aside{display:flex;flex-direction:column;gap:12px;position:sticky;top:12px}
     <h3 id="tvTitle">辦公室電視</h3>
     <label for="tvUrl" style="font-size:13px">貼上 YouTube 網址（影片、Shorts、直播或播放清單都可以）</label>
     <input id="tvUrl" placeholder="https://www.youtube.com/watch?v=..." autocomplete="off">
-    <p class="note" id="tvMsg">牆上的小電視會先靜音播放，按「放大看」才會有聲音。少數影片被上傳者禁止嵌入，會顯示無法播放。</p>
+    <p class="note" id="tvMsg">播放時會有聲音，音量用左下角的滑桿調。少數影片被上傳者禁止嵌入，會顯示無法播放。</p>
     <div class="row"><button type="button" id="tvCancel">取消</button><button type="button" id="tvPlay" class="pri">開始播放</button></div>
   </div>
 </div>
@@ -320,9 +324,10 @@ function findPath(x0,y0,x1,y1){
   out.reverse();out.push([x1,y1]);return out;}
 
 /* ================= agents ================= */
-const SPOTS=[{x:2.25,y:8.75,e:'🏓'},{x:4.25,y:7.25,e:'🏓'},{x:10.5,y:8.75,e:'🛋️'},{x:11.5,y:8.75,e:'📱'},{x:9.75,y:3.4,e:'💬'},
+const SPOTS=[{x:2.25,y:8.75,e:'🏓',nearTV:true},{x:4.25,y:7.25,e:'🏓'},{x:10.5,y:8.75,e:'🛋️'},{x:11.5,y:8.75,e:'📱'},{x:9.75,y:3.4,e:'💬'},
  {x:12.25,y:3.4,e:'💬'},{x:11,y:2.25,e:'☕'},{x:7.95,y:7.75,e:'🥤'},{x:12.6,y:9.4,e:'🎮'},{x:10.25,y:1.25,e:'☕'},{x:13.1,y:5.75,e:'📚'},{x:1.5,y:10.25,e:'⚽'}];
 let perfT=0;
+const TV_SPOTS=[{x:1.75,y:8.5,e:'📺',tv:1},{x:3.25,y:8.75,e:'🍿',tv:1},{x:4.75,y:8.6,e:'😆',tv:1},{x:2.75,y:10.25,e:'📺',tv:1}];
 TEAM.forEach((a,i)=>{const s=SPOTS[(i*2+1)%SPOTS.length];Object.assign(a,{x:s.x,y:s.y,path:[],status:'idle',task:'',progress:0,
   outputs:[],face:'down',sitting:false,emoji:s.e,spot:s,idleT:rnd(1,6),walking:false,onArrive:null,mode:'idle'});});
 function goTo(a,x,y,cb){a.path=findPath(a.x,a.y,x,y);a.onArrive=cb||null;a.sitting=false;a.emoji=null;}
@@ -336,8 +341,13 @@ function update(a,dt){
     return;}
   a.walking=false;
   if(a.mode==='idle'){a.idleT-=dt;if(a.idleT<=0){
-    const taken=new Set(TEAM.filter(b=>b!==a).map(b=>b.spot));const opts=SPOTS.filter(s=>!taken.has(s));
-    const s=opts[(Math.random()*opts.length)|0];a.spot=s;goTo(a,s.x,s.y,()=>{a.emoji=s.e;a.idleT=rnd(6,14);});}}
+    const taken=new Set(TEAM.filter(b=>b!==a).map(b=>b.spot));
+    const freeTV=tvState.on?TV_SPOTS.filter(s=>!taken.has(s)):[];
+    let s;
+    if(freeTV.length&&Math.random()<.6)s=freeTV[(Math.random()*freeTV.length)|0];
+    else{const opts=SPOTS.filter(x=>!taken.has(x)&&!(tvState.on&&x.nearTV));s=opts[(Math.random()*opts.length)|0];}
+    a.spot=s;goTo(a,s.x,s.y,()=>{a.emoji=s.e;if(s.tv){a.face='up';a.idleT=rnd(12,24);}else a.idleT=rnd(6,14);});}}
+  else if(a.spot&&a.spot.tv&&!tvState.on&&a.mode==='idle'){a.idleT=0;}
 }
 function drawAgent(a){
   const z=a.sitting?7:0;const [fx,fy]=iso(a.x,a.y);const [sx,sy0]=iso(a.x,a.y,z);
@@ -498,7 +508,9 @@ async function connect(){
 setTimeout(connect,0);
 
 /* ================= office TV (YouTube) ================= */
-function ytEmbed(url,{mute=true}={}){
+Object.assign(tvState,{vol:60,muted:false,t:0});
+try{const v=+localStorage.getItem('office-tv-vol');if(!isNaN(v)&&localStorage.getItem('office-tv-vol')!==null)tvState.vol=v;}catch{}
+function ytEmbed(url,{mute=false,start=0}={}){
   url=String(url||'').trim();if(!url)return null;let id=null,list=null;
   try{const u=new URL(url.startsWith('http')?url:'https://'+url);const h=u.hostname.replace(/^www\.|^m\./,'');
     list=u.searchParams.get('list');
@@ -508,18 +520,48 @@ function ytEmbed(url,{mute=true}={}){
   }catch{ if(/^[\w-]{11}$/.test(url))id=url; }
   if(id&&!/^[\w-]{6,}$/.test(id))id=null;
   if(!id&&!list)return null;
-  const q=new URLSearchParams({autoplay:'1',playsinline:'1',rel:'0',mute:mute?'1':'0'});
+  const q=new URLSearchParams({autoplay:'1',playsinline:'1',rel:'0',mute:mute?'1':'0',enablejsapi:'1',origin:location.origin});
+  if(start>2)q.set('start',String(Math.floor(start)));
   if(list)q.set('list',list);else{q.set('loop','1');q.set('playlist',id);}
   return 'https://www.youtube-nocookie.com/embed/'+(id||'videoseries')+'?'+q.toString();}
 const tvEl=document.getElementById('tv'),tvFrame=document.getElementById('tvFrame'),tvBar=document.getElementById('tvBar');
+const bigFrame=document.getElementById('tvBigFrame');
+const volEl=document.getElementById('tvVol'),volTxt=document.getElementById('tvVolTxt'),muteBtn=document.getElementById('tvMute');
 function placeTV(){const k=cv.clientWidth/W;if(!k)return;
   const [x0,y0]=iso(0,TV.y2,TV.z2),[x1,y1]=iso(0,TV.y1,TV.z2),[x2,y2]=iso(0,TV.y2,TV.z1);
   const a=(x1-x0)/TV.iw,b=(y1-y0)/TV.iw,c=(x2-x0)/TV.ih,d=(y2-y0)/TV.ih;
   tvEl.style.transform=`matrix(${a*k},${b*k},${c*k},${d*k},${x0*k},${y0*k})`;}
 new ResizeObserver(placeTV).observe(cv);
-function tvOn(url){const src=ytEmbed(url);if(!src)return false;tvState.on=true;tvState.src=url;tvFrame.src=src;tvEl.hidden=false;tvBar.hidden=false;placeTV();
-  try{localStorage.setItem('office-tv',url);}catch{}log(null,'電視開始播放');return true;}
-function tvOffFn(){tvState.on=false;tvFrame.src='about:blank';tvEl.hidden=true;tvBar.hidden=true;try{localStorage.removeItem('office-tv');}catch{}}
+// YouTube iframe API over postMessage (no extra script needed)
+function yt(frame,func,args=[]){try{frame.contentWindow&&frame.contentWindow.postMessage(JSON.stringify({event:'command',func,args}),'*');}catch{}}
+function applyAudio(frame){yt(frame,'setVolume',[tvState.vol]);yt(frame,tvState.muted||tvState.vol===0?'mute':'unMute');}
+function hook(frame){frame.addEventListener('load',()=>{if(frame.src==='about:blank')return;
+  let n=0;const iv=setInterval(()=>{try{frame.contentWindow.postMessage(JSON.stringify({event:'listening',id:frame.id}),'*');}catch{}applyAudio(frame);if(++n>6)clearInterval(iv);},500);});}
+hook(tvFrame);hook(bigFrame);
+window.addEventListener('message',e=>{if(!/youtube(-nocookie)?\.com$/.test(new URL(e.origin).hostname))return;
+  try{const d=typeof e.data==='string'?JSON.parse(e.data):e.data;if(d&&d.info&&typeof d.info.currentTime==='number')tvState.t=d.info.currentTime;}catch{}});
+function syncAudioUI(){volEl.value=tvState.vol;volTxt.textContent=tvState.vol;
+  const off=tvState.muted||tvState.vol===0;muteBtn.textContent=off?'🔇':(tvState.vol<40?'🔉':'🔊');
+  muteBtn.title=off?'開聲音':'靜音';muteBtn.classList.toggle('tvhint',tvState.muted&&tvState.needGesture);
+  if(tvState.muted&&tvState.needGesture)muteBtn.textContent='🔇 點我開聲音';}
+function tvOn(url,{gesture=true}={}){
+  tvState.needGesture=!gesture;tvState.muted=!gesture;tvState.t=0;
+  const src=ytEmbed(url,{mute:tvState.muted});if(!src)return false;
+  tvState.on=true;tvState.src=url;tvFrame.src=src;tvEl.hidden=false;tvBar.hidden=false;placeTV();syncAudioUI();
+  try{localStorage.setItem('office-tv',url);}catch{}
+  log(null,'電視開始播放，大家可能會過來看');
+  TEAM.filter(a=>a.mode==='idle'&&a.status==='idle').forEach(a=>{if(Math.random()<.6)a.idleT=rnd(.5,4);});
+  return true;}
+function tvOffFn(){tvState.on=false;tvFrame.src='about:blank';tvEl.hidden=true;tvBar.hidden=true;try{localStorage.removeItem('office-tv');}catch{}
+  TEAM.forEach(a=>{if(a.spot&&a.spot.tv&&a.mode==='idle')a.idleT=rnd(0,1.5);});}
+volEl.addEventListener('input',()=>{tvState.vol=+volEl.value;if(tvState.vol>0&&!tvState.needGesture)tvState.muted=false;
+  applyAudio(tvFrame);applyAudio(bigFrame);syncAudioUI();try{localStorage.setItem('office-tv-vol',tvState.vol);}catch{}});
+muteBtn.onclick=()=>{
+  if(tvState.needGesture){ // started muted after a reload: restart with sound now that there is a click
+    tvState.needGesture=false;tvState.muted=false;if(tvState.vol===0)tvState.vol=40;
+    tvFrame.src=ytEmbed(tvState.src,{mute:false,start:tvState.t});syncAudioUI();return;}
+  tvState.muted=!(tvState.muted||tvState.vol===0);if(!tvState.muted&&tvState.vol===0)tvState.vol=40;
+  applyAudio(tvFrame);syncAudioUI();try{localStorage.setItem('office-tv-vol',tvState.vol);}catch{}};
 function openTvDlg(){const i=document.getElementById('tvUrl');i.value=tvState.src||'';document.getElementById('tvDlg').hidden=false;setTimeout(()=>i.focus(),30);}
 document.getElementById('tvPlay').onclick=()=>{const v=document.getElementById('tvUrl').value;
   if(tvOn(v))document.getElementById('tvDlg').hidden=true;else document.getElementById('tvMsg').textContent='看不懂這個網址，請貼上 YouTube 影片或播放清單的網址。';};
@@ -527,9 +569,10 @@ document.getElementById('tvUrl').addEventListener('keydown',e=>{if(e.key==='Ente
 document.getElementById('tvCancel').onclick=()=>document.getElementById('tvDlg').hidden=true;
 document.getElementById('tvChange').onclick=openTvDlg;
 document.getElementById('tvOff').onclick=tvOffFn;
-document.getElementById('tvBigBtn').onclick=()=>{const src=ytEmbed(tvState.src,{mute:false});if(!src)return;tvFrame.src='about:blank';
-  document.getElementById('tvBigFrame').src=src;document.getElementById('tvBig').hidden=false;};
-document.getElementById('tvBigClose').onclick=()=>{document.getElementById('tvBigFrame').src='about:blank';document.getElementById('tvBig').hidden=true;if(tvState.on)tvFrame.src=ytEmbed(tvState.src);};
+document.getElementById('tvBigBtn').onclick=()=>{const src=ytEmbed(tvState.src,{mute:false,start:tvState.t});if(!src)return;
+  tvState.needGesture=false;tvState.muted=false;tvFrame.src='about:blank';bigFrame.src=src;document.getElementById('tvBig').hidden=false;syncAudioUI();};
+document.getElementById('tvBigClose').onclick=()=>{bigFrame.src='about:blank';document.getElementById('tvBig').hidden=true;
+  if(tvState.on)tvFrame.src=ytEmbed(tvState.src,{mute:tvState.muted,start:tvState.t});};
 // click the wall TV on the canvas
 cv.addEventListener('click',e=>{const r=cv.getBoundingClientRect(),k=r.width/W,px=(e.clientX-r.left)/k,py=(e.clientY-r.top)/k;
   const pts=[iso(0,TV.y1,TV.z1),iso(0,TV.y2,TV.z1),iso(0,TV.y2,TV.z2),iso(0,TV.y1,TV.z2)];let inside=false;
@@ -537,7 +580,9 @@ cv.addEventListener('click',e=>{const r=cv.getBoundingClientRect(),k=r.width/W,p
   if(inside)openTvDlg();});
 cv.addEventListener('mousemove',e=>{const r=cv.getBoundingClientRect(),k=r.width/W,px=(e.clientX-r.left)/k,py=(e.clientY-r.top)/k;
   const [ax]=iso(0,TV.y2,0),[bx]=iso(0,TV.y1,0),[,ty]=iso(0,TV.y1,TV.z2),[,by]=iso(0,TV.y2,TV.z1);cv.style.cursor=(px>ax&&px<bx&&py>ty&&py<by)?'pointer':'default';});
-try{const saved=localStorage.getItem('office-tv');if(saved)tvOn(saved);}catch{}
+syncAudioUI();
+// after a reload the browser only allows muted autoplay, so resume muted and offer a one-click unmute
+try{const saved=localStorage.getItem('office-tv');if(saved)tvOn(saved,{gesture:false});}catch{}
 async function ai(agent,prompt,onProg){
   if(mode!=='live')return null;
   const c=cfg.agents[agent.id];if(!available[c.p])throw new Error(`後端沒有設定 ${PROVIDERS[c.p].n} 的 API 金鑰`);
