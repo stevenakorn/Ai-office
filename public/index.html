@@ -45,7 +45,7 @@ form.cmd{display:flex;align-items:center;gap:8px;background:var(--panel);border:
 .stats{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 8px}
 .stat{display:flex;align-items:center;gap:6px;font-size:12px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:2px 10px;font-variant-numeric:tabular-nums}
 .dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex:none}
-.stage{background:radial-gradient(ellipse at 50% 40%,#181a22 0%,#0c0d11 70%);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.stage{position:relative;background:radial-gradient(ellipse at 50% 40%,#181a22 0%,#0c0d11 70%);border:1px solid var(--line);border-radius:14px;overflow:hidden}
 #office{display:block;width:100%;height:auto}
 .cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px}
 @media (max-width:560px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -106,6 +106,16 @@ aside{display:flex;flex-direction:column;gap:12px;position:sticky;top:12px}
 .sname small{font-weight:400}
 .vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 @media (max-width:560px){.srow{grid-template-columns:1fr 1fr}.sname{grid-column:1/-1}.sgrid{grid-template-columns:1fr}}
+#tv{position:absolute;left:0;top:0;transform-origin:0 0;pointer-events:auto;box-shadow:0 0 30px rgba(90,162,255,.25)}
+#tv[hidden],.tvbar[hidden]{display:none}
+#tv iframe{width:560px;height:350px;border:0;display:block;background:#000}
+.tvbar{position:absolute;left:10px;bottom:10px;display:flex;gap:6px;align-items:center;background:rgba(14,15,20,.85);border:1px solid var(--line);border-radius:999px;padding:4px 6px 4px 12px;font-size:12px}
+.tvbar button{background:#1d2028;border:1px solid var(--line);border-radius:999px;padding:2px 10px;font-size:12px;cursor:pointer;color:var(--ink)}
+.tvbar button:hover{border-color:var(--muted)}
+#tvDlg input{width:100%}
+.big{width:min(960px,100%);display:flex;flex-direction:column;gap:10px;align-items:flex-end}
+.big iframe{width:100%;aspect-ratio:16/9;border:0;border-radius:12px;background:#000}
+.big button{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 14px;cursor:pointer}
 .note{font-size:12px;color:var(--muted);margin-top:8px}
 @media (prefers-reduced-motion:reduce){#needYou{animation:none}}
 </style>
@@ -125,7 +135,10 @@ aside{display:flex;flex-direction:column;gap:12px;position:sticky;top:12px}
       </form>
       <div class="chips" id="examples"></div>
       <div class="stats" id="stats"></div>
-      <div class="stage"><canvas id="office" width="780" height="540" aria-label="等角視角的辦公室，AI 員工在裡面走動與工作"></canvas></div>
+      <div class="stage" id="stage"><canvas id="office" width="780" height="540" aria-label="等角視角的辦公室，AI 員工在裡面走動與工作"></canvas>
+        <div id="tv" hidden><iframe id="tvFrame" title="辦公室電視" allow="autoplay; encrypted-media; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div>
+        <div class="tvbar" id="tvBar" hidden><span>📺 電視播放中</span><button type="button" id="tvBigBtn">放大看</button><button type="button" id="tvChange">換頻道</button><button type="button" id="tvOff">關電視</button></div>
+      </div>
       <div class="cards" id="cards"></div>
     </main>
     <aside>
@@ -155,6 +168,21 @@ aside{display:flex;flex-direction:column;gap:12px;position:sticky;top:12px}
   </div>
 </div>
 <svg id="wire" aria-hidden="true"></svg>
+<div id="tvDlg" class="ovl" hidden>
+  <div class="dlg wide" role="dialog" aria-modal="true" aria-labelledby="tvTitle">
+    <h3 id="tvTitle">辦公室電視</h3>
+    <label for="tvUrl" style="font-size:13px">貼上 YouTube 網址（影片、Shorts、直播或播放清單都可以）</label>
+    <input id="tvUrl" placeholder="https://www.youtube.com/watch?v=..." autocomplete="off">
+    <p class="note" id="tvMsg">牆上的小電視會先靜音播放，按「放大看」才會有聲音。少數影片被上傳者禁止嵌入，會顯示無法播放。</p>
+    <div class="row"><button type="button" id="tvCancel">取消</button><button type="button" id="tvPlay" class="pri">開始播放</button></div>
+  </div>
+</div>
+<div id="tvBig" class="ovl" hidden>
+  <div class="big">
+    <iframe id="tvBigFrame" title="放大播放" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+    <button type="button" id="tvBigClose">關閉放大，回到牆上</button>
+  </div>
+</div>
 <div id="modal" hidden>
   <div class="dlg" role="dialog" aria-modal="true" aria-labelledby="mTitle">
     <h3 id="mTitle">卡住了</h3>
@@ -249,6 +277,8 @@ add(6.2+8.5,()=>{drawBox(6.1,8.4,.2,.2,2,'#3a3d46');const [sx,sy]=iso(6.2,8.5);c
   ctx.fillStyle='#f3e3b5';ctx.beginPath();ctx.moveTo(sx-8,sy-44);ctx.lineTo(sx+8,sy-44);ctx.lineTo(sx+5,sy-56);ctx.lineTo(sx-5,sy-56);ctx.fill();},[6.0,8.3,.4,.4]);
 
 /* ================= static room ================= */
+const TV={y1:6.6,y2:10.2,z1:30,z2:100,iw:560,ih:350};
+const tvState={on:false,src:''};
 function wallY(x1,x2,z1,z2,f){poly([iso(x1,0,z1),iso(x2,0,z1),iso(x2,0,z2),iso(x1,0,z2)],f);}
 function wallX(y1,y2,z1,z2,f){poly([iso(0,y1,z1),iso(0,y2,z1),iso(0,y2,z2),iso(0,y1,z2)],f);}
 function drawRoom(){
@@ -266,9 +296,11 @@ function drawRoom(){
   ctx.strokeStyle='#d0574b';ctx.beginPath();const p3=iso(10,0,66),p4=iso(11.8,0,62);ctx.moveTo(...p3);ctx.lineTo(...p4);ctx.stroke();
   wallX(1.6,2.6,50,90,'#b8322a');wallX(1.75,2.45,62,66,'#f3d4cf');wallX(1.75,2.2,70,72,'#f3d4cf');
   wallX(3.6,4.6,50,90,'#2f7a4f');wallX(3.75,4.45,60,80,'#9fd3b0');
-  wallX(7,9.5,40,96,'#2a2d37');wallX(7.1,9.4,44,92,'#121520');
-  ctx.save();ctx.font='bold 13px var(--body)';ctx.fillStyle='rgba(255,122,89,.9)';
-  const [lx,ly]=iso(0,8.25,70);ctx.translate(lx,ly);ctx.transform(1,.5,0,1,0,0);ctx.textAlign='center';ctx.fillText('SHIP IT',0,0);ctx.restore();
+  wallX(TV.y1-.12,TV.y2+.12,TV.z1-5,TV.z2+5,'#2a2d37');wallX(TV.y1,TV.y2,TV.z1,TV.z2,tvState.on?'#000':'#121520');
+  wallX((TV.y1+TV.y2)/2-.25,(TV.y1+TV.y2)/2+.25,TV.z1-12,TV.z1-5,'#2a2d37');
+  if(!tvState.on){ctx.save();ctx.font='bold 13px "Noto Sans TC",sans-serif';ctx.fillStyle='rgba(255,122,89,.9)';
+    const [lx,ly]=iso(0,(TV.y1+TV.y2)/2,(TV.z1+TV.z2)/2+6);ctx.translate(lx,ly);ctx.transform(1,-.5,0,1,0,0);ctx.textAlign='center';ctx.fillText('SHIP IT',0,0);
+    ctx.font='10px "Noto Sans TC",sans-serif';ctx.fillStyle='rgba(255,255,255,.45)';ctx.fillText('點我開電視',0,16);ctx.restore();}
 }
 
 /* ================= pathfinding ================= */
@@ -288,7 +320,7 @@ function findPath(x0,y0,x1,y1){
   out.reverse();out.push([x1,y1]);return out;}
 
 /* ================= agents ================= */
-const SPOTS=[{x:.75,y:7.25,e:'🏓'},{x:4.25,y:7.25,e:'🏓'},{x:10.5,y:8.75,e:'🛋️'},{x:11.5,y:8.75,e:'📱'},{x:9.75,y:3.4,e:'💬'},
+const SPOTS=[{x:2.25,y:8.75,e:'🏓'},{x:4.25,y:7.25,e:'🏓'},{x:10.5,y:8.75,e:'🛋️'},{x:11.5,y:8.75,e:'📱'},{x:9.75,y:3.4,e:'💬'},
  {x:12.25,y:3.4,e:'💬'},{x:11,y:2.25,e:'☕'},{x:7.95,y:7.75,e:'🥤'},{x:12.6,y:9.4,e:'🎮'},{x:10.25,y:1.25,e:'☕'},{x:13.1,y:5.75,e:'📚'},{x:1.5,y:10.25,e:'⚽'}];
 let perfT=0;
 TEAM.forEach((a,i)=>{const s=SPOTS[(i*2+1)%SPOTS.length];Object.assign(a,{x:s.x,y:s.y,path:[],status:'idle',task:'',progress:0,
@@ -464,6 +496,48 @@ async function connect(){
   }catch(e){setMode('demo','連不到後端（'+apiURL('/api/providers')+'，'+(e.message||e)+'），先跑示範模式。');}
   finally{refreshCards();}}
 setTimeout(connect,0);
+
+/* ================= office TV (YouTube) ================= */
+function ytEmbed(url,{mute=true}={}){
+  url=String(url||'').trim();if(!url)return null;let id=null,list=null;
+  try{const u=new URL(url.startsWith('http')?url:'https://'+url);const h=u.hostname.replace(/^www\.|^m\./,'');
+    list=u.searchParams.get('list');
+    if(h==='youtu.be')id=u.pathname.slice(1).split('/')[0];
+    else if(/youtube(-nocookie)?\.com$/.test(h)){id=u.searchParams.get('v');
+      const m=u.pathname.match(/^\/(shorts|live|embed)\/([\w-]{6,})/);if(m)id=m[2];}
+  }catch{ if(/^[\w-]{11}$/.test(url))id=url; }
+  if(id&&!/^[\w-]{6,}$/.test(id))id=null;
+  if(!id&&!list)return null;
+  const q=new URLSearchParams({autoplay:'1',playsinline:'1',rel:'0',mute:mute?'1':'0'});
+  if(list)q.set('list',list);else{q.set('loop','1');q.set('playlist',id);}
+  return 'https://www.youtube-nocookie.com/embed/'+(id||'videoseries')+'?'+q.toString();}
+const tvEl=document.getElementById('tv'),tvFrame=document.getElementById('tvFrame'),tvBar=document.getElementById('tvBar');
+function placeTV(){const k=cv.clientWidth/W;if(!k)return;
+  const [x0,y0]=iso(0,TV.y2,TV.z2),[x1,y1]=iso(0,TV.y1,TV.z2),[x2,y2]=iso(0,TV.y2,TV.z1);
+  const a=(x1-x0)/TV.iw,b=(y1-y0)/TV.iw,c=(x2-x0)/TV.ih,d=(y2-y0)/TV.ih;
+  tvEl.style.transform=`matrix(${a*k},${b*k},${c*k},${d*k},${x0*k},${y0*k})`;}
+new ResizeObserver(placeTV).observe(cv);
+function tvOn(url){const src=ytEmbed(url);if(!src)return false;tvState.on=true;tvState.src=url;tvFrame.src=src;tvEl.hidden=false;tvBar.hidden=false;placeTV();
+  try{localStorage.setItem('office-tv',url);}catch{}log(null,'電視開始播放');return true;}
+function tvOffFn(){tvState.on=false;tvFrame.src='about:blank';tvEl.hidden=true;tvBar.hidden=true;try{localStorage.removeItem('office-tv');}catch{}}
+function openTvDlg(){const i=document.getElementById('tvUrl');i.value=tvState.src||'';document.getElementById('tvDlg').hidden=false;setTimeout(()=>i.focus(),30);}
+document.getElementById('tvPlay').onclick=()=>{const v=document.getElementById('tvUrl').value;
+  if(tvOn(v))document.getElementById('tvDlg').hidden=true;else document.getElementById('tvMsg').textContent='看不懂這個網址，請貼上 YouTube 影片或播放清單的網址。';};
+document.getElementById('tvUrl').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('tvPlay').click();});
+document.getElementById('tvCancel').onclick=()=>document.getElementById('tvDlg').hidden=true;
+document.getElementById('tvChange').onclick=openTvDlg;
+document.getElementById('tvOff').onclick=tvOffFn;
+document.getElementById('tvBigBtn').onclick=()=>{const src=ytEmbed(tvState.src,{mute:false});if(!src)return;tvFrame.src='about:blank';
+  document.getElementById('tvBigFrame').src=src;document.getElementById('tvBig').hidden=false;};
+document.getElementById('tvBigClose').onclick=()=>{document.getElementById('tvBigFrame').src='about:blank';document.getElementById('tvBig').hidden=true;if(tvState.on)tvFrame.src=ytEmbed(tvState.src);};
+// click the wall TV on the canvas
+cv.addEventListener('click',e=>{const r=cv.getBoundingClientRect(),k=r.width/W,px=(e.clientX-r.left)/k,py=(e.clientY-r.top)/k;
+  const pts=[iso(0,TV.y1,TV.z1),iso(0,TV.y2,TV.z1),iso(0,TV.y2,TV.z2),iso(0,TV.y1,TV.z2)];let inside=false;
+  for(let i=0,j=3;i<4;j=i++){const [xi,yi]=pts[i],[xj,yj]=pts[j];if((yi>py)!==(yj>py)&&px<(xj-xi)*(py-yi)/(yj-yi)+xi)inside=!inside;}
+  if(inside)openTvDlg();});
+cv.addEventListener('mousemove',e=>{const r=cv.getBoundingClientRect(),k=r.width/W,px=(e.clientX-r.left)/k,py=(e.clientY-r.top)/k;
+  const [ax]=iso(0,TV.y2,0),[bx]=iso(0,TV.y1,0),[,ty]=iso(0,TV.y1,TV.z2),[,by]=iso(0,TV.y2,TV.z1);cv.style.cursor=(px>ax&&px<bx&&py>ty&&py<by)?'pointer':'default';});
+try{const saved=localStorage.getItem('office-tv');if(saved)tvOn(saved);}catch{}
 async function ai(agent,prompt,onProg){
   if(mode!=='live')return null;
   const c=cfg.agents[agent.id];if(!available[c.p])throw new Error(`後端沒有設定 ${PROVIDERS[c.p].n} 的 API 金鑰`);
