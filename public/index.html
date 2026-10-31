@@ -519,8 +519,8 @@ const PROVIDERS={anthropic:{n:'Claude',c:'#d97757',def:'claude-sonnet-5-5'},open
   gemini:{n:'Gemini',c:'#4f8ff7',def:'gemini-flash-latest'},custom:{n:'自訂',c:'#a98bff',def:''}};
 const DEF={api:'',token:'',agents:{Alfred:{p:'anthropic',m:'claude-opus-5-5'},Curry:{p:'gemini',m:'gemini-flash-latest'},
   Michel:{p:'openai',m:'gpt-5.4-mini'},Mia:{p:'anthropic',m:'claude-sonnet-5-5'},Jackson:{p:'openai',m:'gpt-5.4-mini'},John:{p:'anthropic',m:'claude-sonnet-5-5'}}};
-let cfg=JSON.parse(JSON.stringify(DEF));cfg.video={on:false,model:'veo-3.1-fast-generate-preview',aspect:'16:9'};
-try{const s=JSON.parse(localStorage.getItem('office-cfg')||'null');if(s){cfg.api=s.api||'';cfg.token=s.token||'';Object.assign(cfg.agents,s.agents||{});Object.assign(cfg.video,s.video||{});}}catch{}
+let cfg=JSON.parse(JSON.stringify(DEF));cfg.video={on:false,model:'gemini-omni-1.1-flash',aspect:'16:9'};
+try{const s=JSON.parse(localStorage.getItem('office-cfg')||'null');if(s){cfg.api=s.api||'';cfg.token=s.token||'';Object.assign(cfg.agents,s.agents||{});Object.assign(cfg.video,s.video||{});if(/veo-3\.1-(fast|lite)?-?generate-preview/.test(cfg.video.model))cfg.video.model='gemini-omni-1.1-flash';}}catch{}
 function saveCfg(){try{localStorage.setItem('office-cfg',JSON.stringify(cfg));}catch{}}
 let mode='pending',available={};
 const modeEl=document.getElementById('mode');
@@ -660,6 +660,7 @@ function fillModelSelect(id,p,current){const sel=document.getElementById('sm-'+i
   sel.onchange=()=>{inp.hidden=sel.value!=='__custom';if(!inp.hidden){inp.value='';inp.focus();}};}
 const VPRICE=m=>/lite/.test(m)?0.05:/fast|omni/.test(m)?0.10:0.40;
 function fillVideoModels(){const sel=document.getElementById('vModel');const list=(modelCache.gemini_video||[]).slice();
+  if(!list.includes('gemini-omni-1.1-flash'))list.unshift('gemini-omni-1.1-flash');
   if(cfg.video.model&&!list.includes(cfg.video.model))list.unshift(cfg.video.model);
   sel.innerHTML=list.map(m=>`<option value="${esc(m)}" ${m===cfg.video.model?'selected':''}>${esc(m)}　·　約 $${VPRICE(m).toFixed(2)}/秒</option>`).join('');}
 function openSettings(){document.getElementById('sApi').value=cfg.api;document.getElementById('sTok').value=cfg.token;
@@ -708,12 +709,17 @@ function targetSeconds(cmd){let m=cmd.match(/(\d+)\s*分(?:鐘)?\s*(\d+)?\s*秒?
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function api(path,opt={}){const r=await fetch(apiURL(path),Object.assign({headers:hdrs()},opt));
   const j=await r.json().catch(()=>({error:'後端回應格式錯誤（HTTP '+r.status+'）'}));if(!r.ok||j.error)throw new Error(j.error||('HTTP '+r.status));return j;}
-async function fetchClip(uri){let start=0,total=Infinity;const parts=[];
+async function fetchClip(uri){let start=0,total=Infinity,tries=0;const parts=[];
   while(start<total){const r=await fetch(apiURL('/api/video/file?uri='+encodeURIComponent(uri)+'&start='+start),{headers:hdrs()});
+    if(r.status===409&&tries++<36){await sleep(5000);continue;}
     if(!r.ok){const j=await r.json().catch(()=>({}));throw new Error(j.error||('下載失敗 HTTP '+r.status));}
     total=+r.headers.get('X-Total-Size')||0;const b=await r.arrayBuffer();if(!b.byteLength)break;parts.push(b);start+=b.byteLength;}
   return URL.createObjectURL(new Blob(parts,{type:'video/mp4'}));}
-async function genClip(prompt,onState){const {op}=await api('/api/video/start',{method:'POST',body:JSON.stringify({model:cfg.video.model,prompt,aspect:cfg.video.aspect})});
+async function genClip(prompt,onState){
+  const first=/veo/.test(cfg.video.model)?prompt:'An 8-second video. '+prompt;
+  const r0=await api('/api/video/start',{method:'POST',body:JSON.stringify({model:cfg.video.model,prompt:first,aspect:cfg.video.aspect})});
+  if(r0.uri)return await fetchClip(r0.uri);
+  const op=r0.op;
   const t0=Date.now();
   while(Date.now()-t0<9*60*1000){await sleep(9000);const st=await api('/api/video/status?op='+encodeURIComponent(op));onState&&onState((Date.now()-t0)/60000);
     if(st.done){if(st.error)throw new Error(st.error);return await fetchClip(st.uri);}}
