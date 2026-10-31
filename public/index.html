@@ -434,7 +434,7 @@ function smoothPath(start,pts){if(pts.length<3)return pts;const last=pts[pts.len
 const SEATS=SOFA_SEATS.map(([x,y],i)=>({x,y,e:['📱','🛋️','💤'][i],tvE:['📺','🍿','😆'][i],tv:1,sit:1,seatH:0.5,look:{x:0,z:y}}));
 const BEAN={x:1.4,y:10.3,e:'🎧',tvE:'📺',tv:1,sit:1,seatH:0.36,look:{x:0,z:9.2}};
 const SPOTS=[SEATS[0],SEATS[2],BEAN,{x:8.75,y:8.25,e:'🏓',look:{x:10.7,z:8.3}},{x:12.25,y:8.25,e:'🏓',look:{x:10.7,z:8.3}},{x:10.9,y:11.25,e:'⚽',look:{x:10.9,z:10.2}},{x:9.75,y:3.4,e:'💬',sit:1,seatH:0.51,look:{x:11,z:3.4}},
- {x:12.25,y:3.4,e:'💬',sit:1,seatH:0.51,look:{x:11,z:3.4}},{x:11,y:2.25,e:'☕',sit:1,seatH:0.51,look:{x:11,z:3.4}},{x:7.95,y:7.75,e:'🥤',look:{x:8,z:7}},{x:12.6,y:9.4,e:'🎮',look:{x:13.4,z:9.6}},{x:10.25,y:1.25,e:'☕',look:{x:10.25,z:0.5}},{x:13.1,y:5.75,e:'📚',look:{x:13.1,z:5.1}}];
+ {x:12.25,y:3.4,e:'💬',sit:1,seatH:0.51,look:{x:11,z:3.4}},{x:11,y:2.25,e:'☕',sit:1,seatH:0.51,look:{x:11,z:3.4}},{x:7.95,y:7.75,e:'🥤',look:{x:8,z:7}},{x:13.4,y:10.4,e:'🎮',sit:1,seatH:0.5,look:{x:13.4,z:9.2}},{x:10.25,y:1.25,e:'☕',look:{x:10.25,z:0.5}},{x:13.1,y:5.75,e:'📚',look:{x:13.1,z:5.1}}];
 let perfT=0;
 const TV_SPOTS=[...SEATS,BEAN];
 TEAM.forEach((a,i)=>{const s=SPOTS[(i*2+1)%SPOTS.length];Object.assign(a,{x:s.x,y:s.y,path:[],status:'idle',task:'',progress:0,
@@ -597,10 +597,10 @@ function build3D(THREE,RBG){
   box(0,3.6,0.05,1.0,1.15,'#2f7a4f',1.1,{r:.02});box(0.05,3.78,0.01,0.64,0.55,'#9fd3b0',1.35,{r:0});
   box(0,5.4,0.05,0.8,0.5,'#e8c547',1.6,{r:.02});
   // wall clock
-  {const rim=cyl(0,0,0.3,0.06,'#2b2d35',0,{seg:48});rim.rotation.x=Math.PI/2;rim.position.set(6.2,2.05,0.03);
+  {const rim=cyl(0,0,0.46,0.08,'#b9bec7',0,{seg:64,m:{metalness:.6,roughness:.3}});rim.rotation.x=Math.PI/2;rim.position.set(6.3,1.62,0.04);
     const cc=document.createElement('canvas');cc.width=cc.height=256;const ct=new THREE.CanvasTexture(cc);ct.colorSpace=THREE.SRGBColorSpace;ct.anisotropy=4;
-    const face=new THREE.Mesh(new THREE.CircleGeometry(0.27,48),new THREE.MeshStandardMaterial({map:ct,emissive:'#ffffff',emissiveMap:ct,emissiveIntensity:.35,roughness:.4}));
-    face.position.set(6.2,2.05,0.064);scene.add(face);
+    const face=new THREE.Mesh(new THREE.CircleGeometry(0.42,64),new THREE.MeshStandardMaterial({map:ct,emissive:'#ffffff',emissiveMap:ct,emissiveIntensity:.75,roughness:.4}));
+    face.position.set(6.3,1.62,0.082);scene.add(face);
     const drawClock=()=>{const g=cc.getContext('2d'),d=new Date();g.clearRect(0,0,256,256);g.fillStyle='#f4f1ea';g.beginPath();g.arc(128,128,126,0,7);g.fill();
       g.save();g.translate(128,128);
       for(let k=0;k<60;k++){g.rotate(Math.PI/30);g.fillStyle=k%5===4?'#2b2d35':'#9a9ca3';g.fillRect(-(k%5===4?3:1.2),-118,k%5===4?6:2.4,k%5===4?18:9);}
@@ -666,7 +666,7 @@ function build3D(THREE,RBG){
   box(7.6,6.6,0.8,0.8,1.8,'#2b2f38',0,{r:.05});box(7.68,7.39,0.64,0.02,1.0,'#6bb6ff',0.62,{r:.01,m:glow('#3d8fe0',1.4)});
   box(7.72,7.39,0.3,0.02,0.18,'#15171c',0.2,{r:.01});
   box(13.0,9.0,0.8,0.8,1.65,'#3a2a5c',0,{r:.06});box(13.1,9.79,0.6,0.02,0.48,'#ff6fb5',1.0,{r:.01,m:glow('#ff4fa0',1.6)});
-  box(13.05,9.75,0.7,0.2,0.08,'#2a1e44',0.82,{r:.02});cyl(13.25,9.9,0.04,0.04,'#ff5b4f',0.9);cyl(13.45,9.9,0.04,0.04,'#4fd1a9',0.9);
+  box(13.05,9.75,0.7,0.2,0.08,'#2a1e44',0.82,{r:.02});cyl(13.4,10.4,0.2,0.07,'#3c404b',0.43);cyl(13.4,10.4,0.04,0.43,'#5a5d66',0);cyl(13.4,10.4,0.18,0.03,'#3a3d46',0);cyl(13.25,9.9,0.04,0.04,'#ff5b4f',0.9);cyl(13.45,9.9,0.04,0.04,'#4fd1a9',0.9);
 
   /* ---------- lounge in front of the TV ---------- */
   box(0.6,6.5,4.2,4.5,0.02,'#b45d6a',0,{r:0,cast:false});box(0.8,6.7,3.8,4.1,0.022,'#cf7682',0,{r:0,cast:false});
