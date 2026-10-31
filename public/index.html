@@ -798,20 +798,31 @@ async function mergeClips(clips,onProg){
   const mime=['video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/mp4','video/webm;codecs=vp9,opus','video/webm'].find(t=>window.MediaRecorder&&MediaRecorder.isTypeSupported(t));
   if(!mime)throw new Error('這個瀏覽器不支援錄影合併，請用電腦版 Chrome 或 Edge');
   const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:6e6});const chunks=[];rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
-  let cur=A,nxt=B,sub='',blank=false;const fs=Math.round(Hd*.05);
-  const iv=setInterval(()=>{g.fillStyle='#000';g.fillRect(0,0,Wd,Hd);if(!blank&&cur.readyState>=2)g.drawImage(cur,0,0,Wd,Hd);
-    if(sub){g.font=`700 ${fs}px "Noto Sans TC",sans-serif`;g.textAlign='center';g.textBaseline='bottom';g.lineWidth=fs*.18;g.strokeStyle='rgba(0,0,0,.85)';
-      g.strokeText(sub,Wd/2,Hd-fs*.9);g.fillStyle='#fff';g.fillText(sub,Wd/2,Hd-fs*.9);}},33);
+  let cur=A,nxt=B,sub='',hook=false,segT0=performance.now(),segN=0;const vertical=Hd>Wd;const base=Math.round(Math.min(Wd,Hd)*.058);
+  const last=document.createElement('canvas');last.width=Wd;last.height=Hd;const lg=last.getContext('2d');let haveLast=false;
+  function wrap(text,maxW){const lines=[];let line='';for(const ch of text){if(g.measureText(line+ch).width>maxW&&line){lines.push(line);line='';}line+=ch;}if(line)lines.push(line);
+    // avoid a lonely punctuation mark starting a line
+    for(let i=1;i<lines.length;i++)if(/^[，。！？、；：」』）,.!?]/.test(lines[i])){lines[i-1]+=lines[i][0];lines[i]=lines[i].slice(1);}return lines.filter(Boolean);}
+  function caption(text,big){const fs=Math.round(base*(big?1.35:1));g.font=`900 ${fs}px "Noto Sans TC",sans-serif`;g.textAlign='center';g.textBaseline='middle';
+    const lines=wrap(text,Wd*.86).slice(0,4);const lh=fs*1.28;const y0=big?(vertical?Hd*.16:Hd*.18):(vertical?Hd*.70:Hd-fs*.9-(lines.length-1)*lh)-((big?0:lines.length-1)*lh)/2;
+    lines.forEach((l,i)=>{const y=y0+i*lh;g.lineJoin='round';g.lineWidth=fs*.22;g.strokeStyle='rgba(0,0,0,.9)';g.strokeText(l,Wd/2,y);g.fillStyle=big?'#ffd23f':'#fff';g.fillText(l,Wd/2,y);});}
+  const iv=setInterval(()=>{const t=Math.min(1,(performance.now()-segT0)/7000);const z=1+.07*t;const dx=(segN%2?1:-1)*Wd*.02*t;
+    g.fillStyle='#000';g.fillRect(0,0,Wd,Hd);
+    const src=cur.readyState>=2&&!cur.dataset.blank?cur:(haveLast?last:null);
+    if(src){g.save();g.translate(Wd/2+dx,Hd/2);g.scale(z,z);g.drawImage(src,-Wd/2,-Hd/2,Wd,Hd);g.restore();if(src===cur){lg.drawImage(cur,0,0,Wd,Hd);haveLast=true;}}
+    if(sub)caption(sub,hook);},33);
   const srt=[];let tAcc=0;rec.start(1000);
   for(let i=0;i<clips.length;i++){const cl=clips[i];
     const nextUrl=clips.slice(i+1).find(x=>x.url)?.url;
-    sub=cl.sub||'';const t0=ac.currentTime;const waits=[];
-    if(cl.url){blank=false;if(cur.src!==cl.url){cur.src=cl.url;await once(cur,'loadeddata');}
+    sub=cl.sub||'';hook=i===0&&!!cl.hook;const t0=ac.currentTime;const waits=[];segT0=performance.now();segN=i;
+    if(cl.url){delete cur.dataset.blank;if(cur.src!==cl.url){cur.src=cl.url;await once(cur,'loadeddata');}
       if(nextUrl&&nxt.src!==nextUrl){nxt.src=nextUrl;nxt.load();}
-      cur.currentTime=0;await cur.play();waits.push(once(cur,'ended'));}
-    else{blank=true;waits.push(sleep(vbufs[i]?0:3000));}
-    if(vbufs[i]){const src=ac.createBufferSource();src.buffer=vbufs[i];src.connect(dest);src.start(ac.currentTime+0.25);waits.push(sleep((vbufs[i].duration+0.45)*1000));}
-    await Promise.all(waits);
+      cur.currentTime=0;await cur.play();
+      if(!vbufs[i])waits.push(once(cur,'ended'));}
+    else{cur.dataset.blank='1';if(!vbufs[i])waits.push(sleep(2500));}
+    if(vbufs[i]){const src=ac.createBufferSource();src.buffer=vbufs[i];src.connect(dest);src.start(ac.currentTime+0.2);
+      waits.push(sleep(Math.max(2.4,vbufs[i].duration+0.55)*1000));}  // 旁白講完就切，不硬等 8 秒
+    await Promise.all(waits);if(!cur.paused)cur.pause();
     const d=ac.currentTime-t0;if(sub)srt.push(`${srt.length+1}\n${srtTime(tAcc)} --> ${srtTime(tAcc+d)}\n${sub}\n`);tAcc+=d;
     onProg&&onProg((i+1)/clips.length);if(cl.url&&nextUrl&&nxt.src===nextUrl)[cur,nxt]=[nxt,cur];}
   clearInterval(iv);rec.stop();await once(rec,'stop');ac.close();
@@ -827,6 +838,7 @@ ${board.slice(0,5000)}
 - prompt 用英文，寫清楚畫面、動作、鏡頭運動、光線與畫風；每個 prompt 都要完整重複主要角色的外觀（年齡、髮型、服裝），讓不同鏡頭的角色長得一致；所有鏡頭用同一種畫風。
 - 有台詞時，在 prompt 裡寫出誰說了什麼，台詞保留繁體中文原文並加上引號。
 - 不要真實名人、品牌商標或有版權的角色。
+- prompt 裡絕對不要出現任何真實人物的名字，包括歷史人物（例如劉備、曹操、孫權、諸葛亮），也不要寫 Liu Bei、Cao Cao 這類拼音；一律改用外觀描述，例如 the gentle lord in green robes with long earlobes。影片模型看到真實人名會拒絕生成。
 - subtitle 是這個鏡頭的繁體中文字幕（台詞或旁白，20 字內，可以是空字串）。
 只輸出 JSON：{"shots":[{"prompt":"...","subtitle":"..."}]}`;
 const narrShotsPrompt=(cmd,board,segs)=>`你是剪輯師 Jackson。老闆的任務：「${cmd}」
@@ -835,10 +847,14 @@ ${segs.map((x,i)=>`${i+1}. ${x}`).join('\n')}
 ${board?`\n你之前寫的分鏡筆記（參考用）：\n${board.slice(0,3000)}\n`:''}
 請替每一段旁白寫一個要交給 Google 影片模型的英文畫面描述，剛好 ${segs.length} 個，順序一致。
 規則：
-- 畫面要具體呈現該段旁白在講的事；寫清楚場景、人物動作、鏡頭運動、光線。
+- 畫面要具體「演出」該段旁白在講的事，不要只是人物站著對看：每個鏡頭都要有一個明確的動作或事件（遞出地圖、拍桌、搖頭拒絕、城門關上、士兵湧入城池…）和清楚的情緒變化。
+- 鏡頭語言要有變化：輪流用特寫、過肩、俯視、快速推近、橫移等，避免連續兩個鏡頭構圖相同；開頭第一個鏡頭要最有衝擊力。
+- 如果是漫畫或動畫風格，可以加入誇張表情、速度線、汗滴、背景閃光等漫畫效果增加趣味。
+- 寫清楚場景、光線與鏡頭運動。
 - 每個 prompt 都要完整重複主要角色的外觀（年齡、髮型、服裝、盔甲），所有鏡頭同一種畫風（例如 cinematic Chinese historical epic, Three Kingdoms era）。
 - 畫面裡不要出現任何文字或字幕；人物不要開口說話，No spoken dialogue, no narration voice, only ambient sound effects.
 - 不要真實現代名人、品牌商標或有版權的角色。
+- prompt 裡絕對不要出現任何真實人物的名字，包括歷史人物（例如劉備、曹操、孫權、諸葛亮），也不要寫 Liu Bei、Cao Cao 這類拼音；一律改用外觀描述，例如 the gentle lord in green robes with long earlobes。影片模型看到真實人名會拒絕生成。
 只輸出 JSON：{"shots":[{"prompt":"..."}]}`;
 async function makeVideo(a,cmd,st,boardSlot){
   const vo=voCfg();const segs=curNarr.slice(0,15);
@@ -863,10 +879,15 @@ async function makeVideo(a,cmd,st,boardSlot){
   const voJob=useVO?(async()=>{for(let i=0;i<shots.length;i++){try{voices[i]=await genVoice(shots[i].subtitle,vo);}catch(e){log(a.id,`第 ${i+1} 段配音失敗：${e.message||e}`);}}
     const okN=voices.filter(Boolean).length;log(a.id,`配音完成 ${okN}/${shots.length} 段`);})():Promise.resolve();
   const worker=async()=>{while(next<shots.length){const i=next++;
-    try{urls[i]=await genClip(shots[i].prompt);done++;log(a.id,`鏡頭 ${i+1} 完成`);}
+    try{try{urls[i]=await genClip(shots[i].prompt);}
+      catch(e){if(!/real people|likeness|person|celebrit|人物|名人/i.test(e.message||''))throw e;
+        log(a.id,`鏡頭 ${i+1} 被擋（疑似提到真實人物），改寫成外觀描述後重試`);
+        const fixed=await ai(a,`下面是一段要交給 Google 影片模型的英文畫面描述，因為提到真實人物（包含歷史人物）的名字而被拒絕。請改寫：拿掉所有人名、稱號和拼音，改用外觀、服裝、年齡來描述人物，其他畫面內容、畫風和鏡頭運動維持不變。只輸出改寫後的英文描述本身。\n\n${shots[i].prompt}`);
+        shots[i].prompt=(fixed||'').trim()||shots[i].prompt;urls[i]=await genClip(shots[i].prompt);}
+      done++;log(a.id,`鏡頭 ${i+1} 完成`);}
     catch(e){failed++;log(a.id,`鏡頭 ${i+1} 失敗：${e.message||e}`);}upd();}};
   await Promise.all([worker(),worker(),worker(),voJob]);
-  const clips=shots.map((x,i)=>({url:urls[i],sub:x.subtitle,vo:voices[i]})).filter(x=>x.url||(x.vo&&x.sub));
+  const clips=shots.map((x,i)=>({url:urls[i],sub:x.subtitle,vo:voices[i],hook:i===0&&!!x.narr})).filter(x=>x.url||(x.vo&&x.sub));
   if(!clips.some(x=>x.url))throw new Error('所有鏡頭都失敗了');
   setStatus(a,'work','合併成一支影片（請讓這個分頁保持開著）');log(a.id,'所有鏡頭到齊，開始合併，大約需要跟影片一樣長的時間');
   const out=await mergeClips(clips,p=>a.progress=.85+p*.15);
