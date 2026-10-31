@@ -180,7 +180,13 @@ def list_models(provider):
         method = "predictLongRunning" if provider == "gemini_video" else "generateContent"
         r = requests.get("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200",
                          headers={"x-goog-api-key": env("GEMINI_API_KEY")}, timeout=20)
-        return sorted((m["name"].removeprefix("models/") for m in check(r, "Gemini").get("models", [])
+        models = check(r, "Gemini").get("models", [])
+        if provider == "gemini_video":
+            ids = {m["name"].removeprefix("models/") for m in models
+                   if method in m.get("supportedGenerationMethods", []) or "omni" in m["name"] or "veo" in m["name"]}
+            ids.add("gemini-omni-1.1-flash")
+            return sorted(ids, key=lambda x: (0 if "omni" in x else 1, x))
+        return sorted((m["name"].removeprefix("models/") for m in models
                        if method in m.get("supportedGenerationMethods", [])), reverse=True)
     if provider == "custom":
         r = requests.get(f"{env('CUSTOM_BASE_URL').rstrip('/')}/models",
@@ -240,6 +246,8 @@ def chat():
 VIDEO_HOST = "generativelanguage.googleapis.com"
 OP_RE = re.compile(r"^models/[A-Za-z0-9._\-]+/operations/[A-Za-z0-9._\-]+$")
 CHUNK = 3_000_000  # 每次回傳 3MB，避開 Vercel 單次回應 4.5MB 的上限
+TIMEOUT_VIDEO = int(os.environ.get("VIDEO_TIMEOUT", "280"))
+FILE_RE = re.compile(r"/v1beta/(files/[A-Za-z0-9_\-]+)")
 
 
 def gkey():
@@ -257,6 +265,28 @@ def video_start():
     aspect = body.get("aspect") if body.get("aspect") in ("16:9", "9:16") else "16:9"
     if not MODEL_RE.match(model) or not prompt or len(prompt) > 4000:
         return jsonify(error="影片模型或提示詞格式不正確"), 400
+    if "veo" not in model:  # Gemini Omni 等新模型：Interactions API，同步生成後回傳下載網址
+        try:
+            r = requests.post(f"https://{VIDEO_HOST}/v1beta/interactions",
+                              headers={**gkey(), "Content-Type": "application/json"},
+                              json={"model": model, "input": prompt, "store": False, "background": False, "stream": False,
+                                    "response_format": {"type": "video", "aspect_ratio": aspect,
+                                                        "resolution": "720p", "delivery": "uri"}},
+                              timeout=TIMEOUT_VIDEO)
+            j = check(r, "Gemini Omni")
+        except ProviderError as e:
+            return jsonify(error=str(e)), 502
+        except requests.Timeout:
+            return jsonify(error="影片生成超過伺服器時間上限，請把這個鏡頭寫短一點再試"), 504
+        except requests.RequestException as e:
+            return jsonify(error=f"連線失敗：{e.__class__.__name__}"), 502
+        if j.get("status") not in (None, "completed"):
+            return jsonify(error=f"生成沒有完成（{j.get('status')}）"), 502
+        for step in j.get("steps") or []:
+            for c in step.get("content") or []:
+                if c.get("type") == "video" and c.get("uri"):
+                    return jsonify(done=True, uri=c["uri"])
+        return jsonify(error="沒有產出影片，可能被安全規則擋下，或回傳格式不支援"), 502
     try:
         r = requests.post(f"https://{VIDEO_HOST}/v1beta/models/{model}:predictLongRunning",
                           headers={**gkey(), "Content-Type": "application/json"},
@@ -302,6 +332,18 @@ def video_file():
     if not uri.startswith(f"https://{VIDEO_HOST}/"):
         return jsonify(error="影片網址不正確"), 400
     start = max(0, int(request.args.get("start", "0") or 0))
+    m = FILE_RE.search(uri)
+    if m and start == 0:
+        try:
+            meta = requests.get(f"https://{VIDEO_HOST}/v1beta/{m.group(1)}", headers=gkey(), timeout=20)
+            if meta.ok:
+                state = meta.json().get("state", "ACTIVE")
+                if state == "FAILED":
+                    return jsonify(error="Google 處理影片檔失敗"), 502
+                if state != "ACTIVE":
+                    return jsonify(error="影片還在處理中", pending=True), 409
+        except requests.RequestException:
+            pass
     try:
         r = requests.get(uri, headers={**gkey(), "Range": f"bytes={start}-{start + CHUNK - 1}"},
                          timeout=90, allow_redirects=True)
