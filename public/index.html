@@ -174,7 +174,7 @@ aside{display:flex;flex-direction:column;gap:12px;position:sticky;top:12px}
       <details class="narr" id="narrBox" hidden>
         <summary>🎙 解說旁白（選填）<span id="narrInfo"></span></summary>
         <label for="narr" class="vh">解說旁白</label>
-        <textarea id="narr" rows="5" placeholder="寫下你的觀點或旁白，一行一個鏡頭，寫了就會照這份做影片。例如：&#10;如果你是銀行，這筆案子你會核准嗎？&#10;借款人沒有擔保品，也沒說什麼時候還。&#10;更糟的是，他唯一的資產，就是借來的這塊地。"></textarea>
+        <textarea id="narr" rows="5" placeholder="一行一個鏡頭。直線「｜」左邊是旁白（字幕＋配音），右邊是給 Jackson 的導演指示（選填）。例如：&#10;史上最會躺平的皇帝，就是他。｜特寫：角色A躺在龍椅上打呵欠，大黃字標題&#10;只有劉禪，邊吃邊笑，玩得最開心。｜對比構圖：前景角色A大口吃肉狂笑，背景老臣們掩面痛哭"></textarea>
         <div class="vorow">
           <label class="chk" for="voOn"><input type="checkbox" id="voOn" checked> AI 配音</label>
           <label for="voVoice">聲音</label>
@@ -189,7 +189,7 @@ aside{display:flex;flex-direction:column;gap:12px;position:sticky;top:12px}
           <label for="voStyle">語氣</label>
           <input id="voStyle" value="沉穩、有說服力的台灣華語紀錄片解說">
         </div>
-        <p class="note" style="margin:4px 0 0">旁白會原封不動當作字幕和配音，太長的句子會自動拆成兩個鏡頭（每個鏡頭約 8 秒、建議 30 字內）。有配音時，影片本身的音效會自動壓低。</p>
+        <p class="note" style="margin:4px 0 0">「｜」左邊的旁白會原封不動當作字幕和配音，右邊的導演指示只給 Jackson 看、必須照演；太長的句子會自動拆成兩個鏡頭（每個鏡頭約 8 秒、建議 30 字內）。有配音時，影片本身的音效會自動壓低。</p>
       </details>
       <div class="chips" id="examples"></div>
       <div class="stats" id="stats"></div>
@@ -759,9 +759,12 @@ async function fetchClip(uri){let start=0,total=Infinity,tries=0;const parts=[];
 let curNarr=[];
 const voCfg=()=>({on:document.getElementById('voOn').checked,voice:document.getElementById('voVoice').value,style:document.getElementById('voStyle').value.trim()});
 function narrSegments(){const raw=document.getElementById('narr').value.split('\n').map(x=>x.trim()).filter(Boolean);const out=[];
-  for(const line of raw){if(line.length<=32){out.push(line);continue;}
-    let buf='';for(const piece of line.split(/(?<=[，。！？；、,.!?;])/)){if((buf+piece).length>32&&buf){out.push(buf);buf='';}buf+=piece;
-      while(buf.length>32){out.push(buf.slice(0,32));buf=buf.slice(32);}}if(buf)out.push(buf);}
+  for(const row of raw){const k=row.search(/[｜|]/);const line=(k<0?row:row.slice(0,k)).trim(),note=(k<0?'':row.slice(k+1)).trim();
+    if(!line)continue;const chunks=[];
+    if(line.length<=32)chunks.push(line);
+    else{let buf='';for(const piece of line.split(/(?<=[，。！？；、,.!?;])/)){if((buf+piece).length>32&&buf){chunks.push(buf);buf='';}buf+=piece;
+      while(buf.length>32){chunks.push(buf.slice(0,32));buf=buf.slice(32);}}if(buf)chunks.push(buf);}
+    chunks.forEach((t,i)=>out.push({text:t,note:note?(i?'（延續上一鏡）'+note:note):''}));}
   return out;}
 function narrInfo(){const n=narrSegments().length;document.getElementById('narrInfo').textContent=n?`${n} 個鏡頭・約 ${n*8} 秒・預估 US$${(n*8*VPRICE(cfg.video.model)).toFixed(2)}${n>15?'（超過 15 個鏡頭，只會做前 15 個）':''}`:'';
   try{localStorage.setItem('office-narr',document.getElementById('narr').value);localStorage.setItem('office-vo',JSON.stringify(voCfg()));}catch{}}
@@ -842,8 +845,8 @@ ${board.slice(0,5000)}
 - subtitle 是這個鏡頭的繁體中文字幕（台詞或旁白，20 字內，可以是空字串）。
 只輸出 JSON：{"shots":[{"prompt":"...","subtitle":"..."}]}`;
 const narrShotsPrompt=(cmd,board,segs)=>`你是剪輯師 Jackson。老闆的任務：「${cmd}」
-老闆寫好了旁白，每一段旁白對應一個 8 秒的鏡頭（依順序）：
-${segs.map((x,i)=>`${i+1}. ${x}`).join('\n')}
+老闆寫好了旁白，每一段旁白對應一個 8 秒的鏡頭（依順序）。有「導演指示」的鏡頭，是老闆親自指定的演法，優先順序最高，畫面必須完全照指示演出，不可以省略或改掉其中的動作、構圖和情緒：
+${segs.map((x,i)=>`${i+1}. 旁白：${x.text}${x.note?`\n   導演指示：${x.note}`:''}`).join('\n')}
 ${board?`\n你之前寫的分鏡筆記（參考用）：\n${board.slice(0,3000)}\n`:''}
 請替每一段旁白寫一個要交給 Google 影片模型的英文畫面描述，剛好 ${segs.length} 個，順序一致。
 規則：
@@ -862,7 +865,7 @@ async function makeVideo(a,cmd,st,boardSlot){
   if(segs.length){
     setStatus(a,'work','依旁白規劃畫面');a.progress=.05;
     const raw=await ai(a,narrShotsPrompt(cmd,boardSlot.text,segs),p=>a.progress=.05+p*.05);
-    const ps=(parseJSON(raw).shots||[]);shots=segs.map((t,i)=>({prompt:(ps[i]&&ps[i].prompt)||ps[ps.length-1]?.prompt||t,subtitle:t,narr:true}));
+    const ps=(parseJSON(raw).shots||[]);shots=segs.map((x,i)=>({prompt:(ps[i]&&ps[i].prompt)||ps[ps.length-1]?.prompt||x.text,subtitle:x.text,note:x.note,narr:true}));
   }else{
     const secs=Math.max(8,Math.min(120,targetSeconds(cmd)));const n=Math.min(15,Math.ceil(secs/8));
     setStatus(a,'work','把分鏡轉成鏡頭清單');a.progress=.05;
@@ -892,7 +895,7 @@ async function makeVideo(a,cmd,st,boardSlot){
   setStatus(a,'work','合併成一支影片（請讓這個分頁保持開著）');log(a.id,'所有鏡頭到齊，開始合併，大約需要跟影片一樣長的時間');
   const out=await mergeClips(clips,p=>a.progress=.85+p*.15);
   deliverables.push({idx:-2,who:'Jackson',title:'成片',video:out.url,mime:out.mime,srt:out.srt,
-    text:`**長度**：約 ${Math.round(out.seconds)} 秒，${shots.length} 個鏡頭${failed?`（${failed} 個鏡頭失敗${segs.length?'，該段以黑畫面＋旁白補上':'，已略過'}）`:''}${useVO?`\n\n**配音**：${vo.voice}・${vo.style}`:''}\n\n**鏡頭清單**\n`+shots.map((x,i)=>`${i+1}. ${urls[i]?'':'（畫面失敗）'}${x.subtitle||'（無字幕）'}`).join('\n')});
+    text:`**長度**：約 ${Math.round(out.seconds)} 秒，${shots.length} 個鏡頭${failed?`（${failed} 個鏡頭失敗${segs.length?'，該段以上一個畫面＋旁白補上':'，已略過'}）`:''}${useVO?`\n\n**配音**：${vo.voice}・${vo.style}`:''}\n\n**鏡頭清單**\n`+shots.map((x,i)=>`${i+1}. ${urls[i]?'':'（畫面失敗）'}${x.subtitle||'（無字幕）'}${x.note?`\n   - 導演指示：${x.note}`:''}\n   - 送給影片模型的畫面描述：\`${(x.prompt||'').replace(/`/g,"'")}\``).join('\n')});
   viewing='d'+(deliverables.length-1);renderOut();log(a.id,'影片完成，可以在交付成果預覽、下載，或丟到電視播');}
 
 /* ================= attachments (read in the browser) ================= */
@@ -950,7 +953,7 @@ const workPrompt=(a,cmd,st,ctxs,notes)=>`你是 ${a.id}，AI 團隊中的${a.rol
 老闆交代的整體任務：「${cmd}」
 主管 Alfred 指派給你的子任務：${st.title}
 指示：${st.instructions}
-${notes?`老闆補充：${notes}\n`:''}${st.use_files!==false&&curFiles.length?filesFull():''}${a.id==='Jackson'&&curNarr.length?`\n老闆寫好的旁白（每行一個鏡頭，旁白和字幕會照原文，你只要規劃畫面）：\n${curNarr.join('\n')}\n`:''}${ctxs.length?`\n同事已完成的產出（請以此為基礎）：\n${ctxs.map(c=>`### ${c.who}・${c.title}\n${c.text.slice(0,2500)}`).join('\n\n')}\n`:''}
+${notes?`老闆補充：${notes}\n`:''}${st.use_files!==false&&curFiles.length?filesFull():''}${a.id==='Jackson'&&curNarr.length?`\n老闆寫好的旁白（每行一個鏡頭，旁白和字幕會照原文，你只要規劃畫面；有「導演指示」的鏡頭必須照指示演出）：\n${curNarr.map((x,i)=>`${i+1}. ${x.text}${x.note?`　［導演指示：${x.note}］`:''}`).join('\n')}\n`:''}${ctxs.length?`\n同事已完成的產出（請以此為基礎）：\n${ctxs.map(c=>`### ${c.who}・${c.title}\n${c.text.slice(0,2500)}`).join('\n\n')}\n`:''}
 請直接交出成果：繁體中文（台灣用語），Markdown 格式，具體可用，約 300 到 600 字${curFiles.length?'；引用附件的數字時要寫清楚出處（檔名、工作表或欄位），不要編造附件裡沒有的數字':''}。你沒有上網能力，研究類內容依你的知識整理，並標出需要再查證的數字。
 如果缺少關鍵資訊導致完全無法完成，只輸出一行「NEED_USER: 你要問老闆的問題」。`;
 const reviewPrompt=(cmd,ds)=>`你是 John，AI 團隊的審查。老闆的任務：「${cmd}」
