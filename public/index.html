@@ -419,7 +419,16 @@ function findPath(x0,y0,x1,y1){
       const n=nj*CW+ni;if(prev[n]!==-1||(blocked[n]&&n!==g))continue;prev[n]=c;q.push(n);}}
   if(prev[g]===-1)return [[x1,y1]];
   const out=[];let c=g;while(c!==s){out.push([(c%CW+.5)/R,(((c/CW)|0)+.5)/R]);c=prev[c];}
-  out.reverse();out.push([x1,y1]);return out;}
+  out.reverse();out.push([x1,y1]);return smoothPath([x0,y0],out);}
+function walkable(x,y,goal){const i=Math.floor(x*R),j=Math.floor(y*R);if(i<0||j<0||i>=CW||j>=CH)return false;
+  if(goal&&i===goal[0]&&j===goal[1])return true;return !blocked[j*CW+i];}
+function clearLine(a,b,goal){const dx=b[0]-a[0],dy=b[1]-a[1],n=Math.ceil(Math.hypot(dx,dy)/0.1);
+  for(let k=1;k<n;k++){const t=k/n,x=a[0]+dx*t,y=a[1]+dy*t;
+    for(const [ox,oy] of [[0,0],[.12,0],[-.12,0],[0,.12],[0,-.12]])if(!walkable(x+ox,y+oy,goal))return false;}return true;}
+function smoothPath(start,pts){if(pts.length<3)return pts;const last=pts[pts.length-1];const goal=[Math.floor(last[0]*R),Math.floor(last[1]*R)];
+  const out=[];let cur=start,i=0;
+  while(i<pts.length){let j=pts.length-1;while(j>i&&!clearLine(cur,pts[j],goal))j--;out.push(pts[j]);cur=pts[j];i=j+1;}
+  return out;}
 
 /* ================= agents ================= */
 const SEATS=SOFA_SEATS.map(([x,y],i)=>({x,y,e:['📱','🛋️','💤'][i],tvE:['📺','🍿','😆'][i],tv:1,sit:1,seatH:0.5,look:{x:0,z:y}}));
@@ -588,7 +597,20 @@ function build3D(THREE,RBG){
   box(0,3.6,0.05,1.0,1.15,'#2f7a4f',1.1,{r:.02});box(0.05,3.78,0.01,0.64,0.55,'#9fd3b0',1.35,{r:0});
   box(0,5.4,0.05,0.8,0.5,'#e8c547',1.6,{r:.02});
   // wall clock
-  {const c=cyl(0,0,0.28,0.05,'#f1efe9',0,{seg:32});c.rotation.x=Math.PI/2;c.position.set(6.2,2.05,0.05);}
+  {const rim=cyl(0,0,0.3,0.06,'#2b2d35',0,{seg:48});rim.rotation.x=Math.PI/2;rim.position.set(6.2,2.05,0.03);
+    const cc=document.createElement('canvas');cc.width=cc.height=256;const ct=new THREE.CanvasTexture(cc);ct.colorSpace=THREE.SRGBColorSpace;ct.anisotropy=4;
+    const face=new THREE.Mesh(new THREE.CircleGeometry(0.27,48),new THREE.MeshStandardMaterial({map:ct,emissive:'#ffffff',emissiveMap:ct,emissiveIntensity:.35,roughness:.4}));
+    face.position.set(6.2,2.05,0.064);scene.add(face);
+    const drawClock=()=>{const g=cc.getContext('2d'),d=new Date();g.clearRect(0,0,256,256);g.fillStyle='#f4f1ea';g.beginPath();g.arc(128,128,126,0,7);g.fill();
+      g.save();g.translate(128,128);
+      for(let k=0;k<60;k++){g.rotate(Math.PI/30);g.fillStyle=k%5===4?'#2b2d35':'#9a9ca3';g.fillRect(-(k%5===4?3:1.2),-118,k%5===4?6:2.4,k%5===4?18:9);}
+      g.fillStyle='#2b2d35';g.font='700 30px "Noto Sans TC",sans-serif';g.textAlign='center';g.textBaseline='middle';
+      [['12',0,-80],['3',80,0],['6',0,80],['9',-80,0]].forEach(([t,x,y])=>g.fillText(t,x,y));
+      const h=d.getHours()%12,m=d.getMinutes(),sc=d.getSeconds();
+      const hand=(ang,len,w,c)=>{g.save();g.rotate(ang);g.strokeStyle=c;g.lineWidth=w;g.lineCap='round';g.beginPath();g.moveTo(0,len*.18);g.lineTo(0,-len);g.stroke();g.restore();};
+      hand((h+m/60)*Math.PI/6,62,10,'#2b2d35');hand((m+sc/60)*Math.PI/30,92,6,'#2b2d35');hand(sc*Math.PI/30,100,2.5,'#ff5b4f');
+      g.fillStyle='#ff5b4f';g.beginPath();g.arc(0,0,7,0,7);g.fill();g.restore();ct.needsUpdate=true;};
+    drawClock();setInterval(drawClock,1000);}
 
   /* ---------- wall TV ---------- */
   box(0,TV3.z1-.12,0.1,TV3.z2-TV3.z1+.24,TV3.y2-TV3.y1+.24,'#1c1e26',TV3.y1-.12,{r:.04});
@@ -718,9 +740,9 @@ function seatHeight(a){if(!a.sitting||a.path.length)return 0;if(a.mode==='desk')
 function render3D(dt){const {THREE,renderer,scene,cam,monitors,project}=R3;
   TEAM.forEach(a=>{const r=a._3;if(!r)return;const sitting=a.sitting&&!a.path.length;const sh=seatHeight(a);
     r.g.position.set(a.x,(sitting?sh-0.3:0)+(a.walking?Math.abs(Math.sin(perfT*11))*0.035:0),a.y);
-    let ang;if(a.walking)ang=Math.atan2(a._vx||0,a._vz||1);
+    let ang;if(a.walking&&a.path.length){const [tx,ty]=a.path[0];ang=Math.atan2(tx-a.x,ty-a.y);}else if(a.walking)ang=Math.atan2(a._vx||0,a._vz||1);
     else if(a.faceTo)ang=Math.atan2(a.faceTo.x-a.x,a.faceTo.z-a.y);else ang=Math.PI/4;
-    r.g.rotation.y=lerpAngle(r.g.rotation.y,ang,Math.min(1,dt*9));
+    r.g.rotation.y=lerpAngle(r.g.rotation.y,ang,Math.min(1,dt*12));
     const sw=a.walking?Math.sin(perfT*11)*0.6:0;
     r.legL.rotation.x=sitting?-1.45:sw;r.legR.rotation.x=sitting?-1.45:-sw;
     const typing=sitting&&a.mode==='desk'&&(a.status==='work'||a.status==='plan'||a.status==='review');
