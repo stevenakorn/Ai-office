@@ -101,7 +101,9 @@ aside{display:flex;flex-direction:column;gap:12px;position:sticky;top:12px}
 .sgrid small,.sname small{color:var(--muted);font-size:11px}
 .dlg input,.dlg select{background:#0f1116;border:1px solid var(--line);border-radius:8px;padding:6px 8px;min-width:0}
 #sAgents{display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--line);padding-top:10px}
-.srow{display:grid;grid-template-columns:110px 190px 1fr;gap:8px;align-items:center}
+.mcell{display:flex;flex-direction:column;gap:4px;min-width:0}
+.mcell select,.mcell input{width:100%}
+.srow{display:grid;grid-template-columns:110px 170px 1fr;gap:8px;align-items:center}
 .sname{flex-direction:row;align-items:center;gap:6px;font-weight:700}
 .sname small{font-weight:400}
 .vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
@@ -603,30 +605,54 @@ const modelLabel=a=>{const c=cfg.agents[a.id];return `${PROVIDERS[c.p].n}・${c.
 
 /* ================= settings dialog ================= */
 const setEl=document.getElementById('settings');
+let modelCache={};try{modelCache=JSON.parse(localStorage.getItem('office-models')||'{}')||{};}catch{}
+function tier(m){m=m.toLowerCase();
+  if(/(^|[-_.])(mini|nano|lite|haiku|luna|flash|small|tiny|8b)($|[-_.])/.test(m))return '輕量快速';
+  if(/opus|(^|[-_])pro($|[-_])|ultra|astra|max/.test(m))return '高階';
+  return '中階';}
+const isSnapshot=m=>/-\d{6,8}$|-\d{4}-\d{2}-\d{2}$|-\d{2}-\d{4}$|preview-\d|-\d{3}$|exp/.test(m);
+function modelOptions(p,current){
+  const list=(modelCache[p]||[]).slice();if(current&&!list.includes(current))list.unshift(current);
+  const main=list.filter(m=>!isSnapshot(m)),other=list.filter(m=>isSnapshot(m));
+  const opt=m=>`<option value="${esc(m)}" ${m===current?'selected':''}>${esc(m)}　·　${tier(m)}</option>`;
+  let h='';
+  if(!list.length)h+=`<option value="" disabled ${current?'':'selected'}>先按「讀取可用模型」</option>`;
+  if(main.length)h+=`<optgroup label="常用（自動跟到最新版）">${main.map(opt).join('')}</optgroup>`;
+  if(other.length)h+=`<optgroup label="固定版本">${other.map(opt).join('')}</optgroup>`;
+  h+=`<option value="__custom">✎ 自己輸入模型 ID…</option>`;return h;}
+function fillModelSelect(id,p,current){const sel=document.getElementById('sm-'+id),inp=document.getElementById('sc-'+id);
+  sel.innerHTML=modelOptions(p,current);inp.hidden=true;
+  sel.onchange=()=>{inp.hidden=sel.value!=='__custom';if(!inp.hidden){inp.value='';inp.focus();}};}
 function openSettings(){document.getElementById('sApi').value=cfg.api;document.getElementById('sTok').value=cfg.token;
   document.getElementById('sAgents').innerHTML=TEAM.map(a=>{const c=cfg.agents[a.id];return `<div class="srow">
     <span class="sname"><span class="dot" style="background:${a.acc}"></span>${a.id}<small>${a.role}</small></span>
     <label class="vh" for="sp-${a.id}">${a.id} 的 AI</label>
-    <select id="sp-${a.id}" data-a="${a.id}">${Object.keys(PROVIDERS).map(k=>`<option value="${k}" ${k===c.p?'selected':''}>${PROVIDERS[k].n}${mode==='live'&&!available[k]?'（無金鑰）':''}</option>`).join('')}</select>
-    <label class="vh" for="sm-${a.id}">${a.id} 的模型</label>
-    <input id="sm-${a.id}" list="dl-${c.p}" value="${esc(c.m)}" placeholder="模型 ID"></div>`;}).join('')+
-    Object.keys(PROVIDERS).map(k=>`<datalist id="dl-${k}"></datalist>`).join('');
-  TEAM.forEach(a=>{const sel=document.getElementById('sp-'+a.id),inp=document.getElementById('sm-'+a.id);
-    sel.onchange=()=>{inp.setAttribute('list','dl-'+sel.value);inp.value=PROVIDERS[sel.value].def;};});
-  document.getElementById('sMsg').textContent='';setEl.hidden=false;}
+    <select id="sp-${a.id}">${Object.keys(PROVIDERS).map(k=>`<option value="${k}" ${k===c.p?'selected':''}>${PROVIDERS[k].n}${mode==='live'&&!available[k]?'（無金鑰）':''}</option>`).join('')}</select>
+    <div class="mcell"><label class="vh" for="sm-${a.id}">${a.id} 的模型</label><select id="sm-${a.id}"></select>
+    <label class="vh" for="sc-${a.id}">自訂模型 ID</label><input id="sc-${a.id}" placeholder="輸入模型 ID" hidden></div></div>`;}).join('');
+  TEAM.forEach(a=>{const c=cfg.agents[a.id];fillModelSelect(a.id,c.p,c.m);
+    const ps=document.getElementById('sp-'+a.id);
+    ps.onchange=()=>{const p=ps.value,l=modelCache[p]||[];const d=PROVIDERS[p].def;fillModelSelect(a.id,p,l.includes(d)||!l.length?d:l[0]);};});
+  document.getElementById('sMsg').textContent='';setEl.hidden=false;
+  if(mode==='live'&&!Object.keys(modelCache).length)loadModels();}
 async function loadModels(){const tmp={api:document.getElementById('sApi').value.trim(),token:document.getElementById('sTok').value.trim()};
   const msg=document.getElementById('sMsg');msg.textContent='讀取中…';const got=[];
   try{const r=await fetch(apiURL('/api/providers',tmp),{headers:hdrs(tmp)});if(r.status===401){msg.textContent='存取密碼不對。';return;}
     if(!r.ok)throw new Error('HTTP '+r.status);const pv=(await r.json()).providers||{};
     for(const k of Object.keys(pv).filter(k=>pv[k])){try{const m=await (await fetch(apiURL('/api/models?provider='+k,tmp),{headers:hdrs(tmp)})).json();
-      const dl=document.getElementById('dl-'+k);if(dl&&m.models){dl.innerHTML=m.models.map(x=>`<option value="${esc(x)}">`).join('');got.push(`${PROVIDERS[k].n} ${m.models.length} 個`);}}catch{}}
-    msg.textContent=got.length?`已讀取：${got.join('、')}。點模型欄位就能從清單挑。`:'後端沒有回傳任何模型，請確認金鑰。';}
+      if(m.models){modelCache[k]=m.models;got.push(`${PROVIDERS[k].n} ${m.models.length} 個`);}}catch{}}
+    try{localStorage.setItem('office-models',JSON.stringify(modelCache));}catch{}
+    TEAM.forEach(a=>{const ps=document.getElementById('sp-'+a.id),ms=document.getElementById('sm-'+a.id);if(!ps||!ms)return;
+      const cur=ms.value&&ms.value!=='__custom'?ms.value:cfg.agents[a.id].m;fillModelSelect(a.id,ps.value,cur);});
+    msg.textContent=got.length?`已讀取：${got.join('、')}。每個模型後面標了等級：高階、中階、輕量快速。`:'後端沒有回傳任何模型，請確認金鑰。';}
   catch(e){msg.textContent='連不到後端（'+(e.message||e)+'），請確認網址。';}}
 document.getElementById('openSettings').onclick=openSettings;
 document.getElementById('sLoad').onclick=loadModels;
 document.getElementById('sCancel').onclick=()=>setEl.hidden=true;
 document.getElementById('sSave').onclick=()=>{cfg.api=document.getElementById('sApi').value.trim();cfg.token=document.getElementById('sTok').value.trim();
-  TEAM.forEach(a=>{cfg.agents[a.id]={p:document.getElementById('sp-'+a.id).value,m:document.getElementById('sm-'+a.id).value.trim()};});
+  for(const a of TEAM){const ms=document.getElementById('sm-'+a.id);const m=ms.value==='__custom'?document.getElementById('sc-'+a.id).value.trim():ms.value;
+    if(!m){document.getElementById('sMsg').textContent=`${a.id} 還沒選模型。`;return;}
+    cfg.agents[a.id]={p:document.getElementById('sp-'+a.id).value,m};}
   saveCfg();setEl.hidden=true;setMode('pending');connect();};
 setEl.addEventListener('click',e=>{if(e.target===setEl)setEl.hidden=true;});
 function parseJSON(t){const m=String(t).match(/\{[\s\S]*\}/);return JSON.parse(m?m[0]:t);}
