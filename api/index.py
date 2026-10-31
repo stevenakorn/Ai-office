@@ -19,6 +19,24 @@ from flask import Flask, jsonify, request, send_from_directory
 
 app = Flask(__name__)
 
+
+# Vercel 會把 /api/xxx 轉送成 /api/index?__p=xxx，這裡把原本的路徑還原
+class VercelPath:
+    def __init__(self, wsgi):
+        self.wsgi = wsgi
+
+    def __call__(self, environ, start_response):
+        from urllib.parse import parse_qsl, urlencode
+        qs = parse_qsl(environ.get("QUERY_STRING", ""), keep_blank_values=True)
+        p = next((v for k, v in qs if k == "__p"), None)
+        if p is not None:
+            environ["PATH_INFO"] = "/api/" + p.lstrip("/")
+            environ["QUERY_STRING"] = urlencode([(k, v) for k, v in qs if k != "__p"])
+        return self.wsgi(environ, start_response)
+
+
+app.wsgi_app = VercelPath(app.wsgi_app)
+
 PUBLIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "public")
 TIMEOUT = int(os.environ.get("AI_TIMEOUT", "110"))
 MAX_PROMPT = 60_000
