@@ -109,6 +109,7 @@ aside{display:flex;flex-direction:column;gap:12px;position:sticky;top:12px}
 .vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 @media (max-width:560px){.srow{grid-template-columns:1fr 1fr}.sname{grid-column:1/-1}.sgrid{grid-template-columns:1fr}}
 #tv{position:absolute;left:0;top:0;transform-origin:0 0;pointer-events:auto;box-shadow:0 0 30px rgba(90,162,255,.25)}
+[hidden]{display:none!important}
 #tv[hidden],.tvbar[hidden]{display:none}
 #tv iframe{width:560px;height:350px;border:0;display:block;background:#000}
 .tvbar{position:absolute;left:10px;bottom:10px;display:flex;gap:6px;align-items:center;background:rgba(14,15,20,.85);border:1px solid var(--line);border-radius:999px;padding:4px 6px 4px 12px;font-size:12px}
@@ -122,6 +123,16 @@ aside{display:flex;flex-direction:column;gap:12px;position:sticky;top:12px}
 .big{width:min(960px,100%);display:flex;flex-direction:column;gap:10px;align-items:flex-end}
 .big iframe{width:100%;aspect-ratio:16/9;border:0;border-radius:12px;background:#000}
 .big button{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 14px;cursor:pointer}
+.vsec{border-top:1px solid var(--line);padding-top:10px;display:flex;flex-direction:column;gap:8px}
+.vsec h4{margin:0;font-size:13px}
+.chk{display:flex;gap:8px;align-items:flex-start;font-size:13px}
+.vrow{display:grid;grid-template-columns:auto 1fr auto auto;gap:8px;align-items:center;font-size:13px}
+@media (max-width:560px){.vrow{grid-template-columns:auto 1fr}}
+.vbtns{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.vbtns a,.vbtns button{background:#1d2028;border:1px solid var(--line);border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer;color:var(--ink);text-decoration:none}
+#out video{width:100%;border-radius:8px;background:#000;display:block}
+#tv video{width:560px;height:350px;display:block;background:#000;object-fit:contain}
+.big video{width:100%;max-height:80vh;border-radius:12px;background:#000}
 .note{font-size:12px;color:var(--muted);margin-top:8px}
 @media (prefers-reduced-motion:reduce){#needYou{animation:none}}
 </style>
@@ -142,7 +153,7 @@ aside{display:flex;flex-direction:column;gap:12px;position:sticky;top:12px}
       <div class="chips" id="examples"></div>
       <div class="stats" id="stats"></div>
       <div class="stage" id="stage"><canvas id="office" width="780" height="540" aria-label="等角視角的辦公室，AI 員工在裡面走動與工作"></canvas>
-        <div id="tv" hidden><iframe id="tvFrame" title="辦公室電視" allow="autoplay; encrypted-media; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div>
+        <div id="tv" hidden><video id="tvVideo" playsinline loop hidden></video><iframe id="tvFrame" title="辦公室電視" allow="autoplay; encrypted-media; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div>
         <div class="tvbar" id="tvBar" hidden><span>📺</span><button type="button" id="tvMute" aria-label="靜音切換">🔊</button><label class="vh" for="tvVol">音量</label><input type="range" id="tvVol" min="0" max="100" step="1" value="60"><span id="tvVolTxt" class="voltxt">60</span><button type="button" id="tvBigBtn">放大看</button><button type="button" id="tvChange">換頻道</button><button type="button" id="tvOff">關電視</button></div>
       </div>
       <div class="cards" id="cards"></div>
@@ -169,6 +180,13 @@ aside{display:flex;flex-direction:column;gap:12px;position:sticky;top:12px}
       <label for="sTok">存取密碼<small>Vercel 環境變數 OFFICE_TOKEN 的值</small></label><input id="sTok" type="password" autocomplete="off">
     </div>
     <div id="sAgents"></div>
+    <div class="vsec">
+      <h4>🎬 Jackson 真的產出影片（Google Veo）</h4>
+      <label class="chk" for="vOn"><input type="checkbox" id="vOn"> 派到 Jackson 的影片任務，自動生成每個鏡頭並合併成一支影片</label>
+      <div class="vrow"><label for="vModel">影片模型</label><select id="vModel"></select>
+        <label for="vAspect">畫面</label><select id="vAspect"><option value="16:9">16:9 橫式</option><option value="9:16">9:16 直式（短影音）</option></select></div>
+      <p class="note" style="margin:0">需要 Gemini 金鑰開啟付費。每次生成前，Jackson 都會先報價給你按同意。</p>
+    </div>
     <p class="note" id="sMsg"></p>
     <div class="row"><button id="sLoad" type="button">讀取可用模型</button><span style="flex:1"></span><button id="sCancel" type="button">取消</button><button id="sSave" class="pri" type="button">儲存並連線</button></div>
   </div>
@@ -185,7 +203,7 @@ aside{display:flex;flex-direction:column;gap:12px;position:sticky;top:12px}
 </div>
 <div id="tvBig" class="ovl" hidden>
   <div class="big">
-    <iframe id="tvBigFrame" title="放大播放" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+    <video id="tvBigVideo" controls playsinline hidden></video><iframe id="tvBigFrame" title="放大播放" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
     <button type="button" id="tvBigClose">關閉放大，回到牆上</button>
   </div>
 </div>
@@ -464,7 +482,11 @@ function renderTabs(){
   tabsEl.querySelectorAll('button').forEach(b=>b.onclick=()=>{viewing=b.dataset.k;renderOut();});}
 function renderOut(){renderTabs();
   if(viewing==='final'){outEl.innerHTML=finalText?md(finalText):'<p class="empty">派一個任務，產出會出現在這裡。點下方員工卡片可以看個別成員的產出。</p>';}
-  else if(viewing.startsWith('d')){const d=deliverables[+viewing.slice(1)];outEl.innerHTML=d?md(d.text||'（撰寫中…）'):'';}
+  else if(viewing.startsWith('d')){const d=deliverables[+viewing.slice(1)];
+    if(d&&d.video){const ext=d.mime&&d.mime.includes('mp4')?'mp4':'webm';
+      outEl.innerHTML=`<video controls playsinline src="${d.video}"></video><div class="vbtns"><a href="${d.video}" download="ai-office-${Date.now()}.${ext}">下載影片（.${ext}）</a><button type="button" id="vTv">在辦公室電視播放</button>${d.srt?`<a href="${d.srt}" download="subtitles.srt">下載字幕（.srt）</a>`:''}</div>`+md(d.text||'');
+      document.getElementById('vTv').onclick=()=>tvPlayLocal(d.video);}
+    else outEl.innerHTML=d?md(d.text||'（撰寫中…）'):'';}
   else{const a=byId[viewing];outEl.innerHTML=`<p class="empty">${a.id}（${a.role}）：${esc(a.desc)}。這次還沒有產出。</p>`;}}
 function showAgent(a){const i=deliverables.map(d=>d.who).lastIndexOf(a.id);viewing=i>=0?'d'+i:a.id;renderOut();refreshCards();}
 document.getElementById('copy').onclick=async e=>{const t=viewing==='final'?finalText:(viewing.startsWith('d')?deliverables[+viewing.slice(1)]?.text:'');
@@ -479,13 +501,15 @@ function wire(){const svg=document.getElementById('wire');const br=document.getE
 
 /* ================= ask the boss ================= */
 const askQueue=[];let asking=null;
-function askUser(a,q){return new Promise(res=>{a.ask={q,res};setStatus(a,'stuck');log(a.id,`卡住了，找你：${q}`);askQueue.push(a);if(!asking)openAsk(askQueue[0]);});}
-function openAsk(a){asking=a;document.getElementById('mTitle').textContent=`${a.id}（${a.role}）卡住了，需要你`;document.getElementById('mQ').textContent=a.ask.q;
+function askUser(a,q,opt={}){return new Promise(res=>{a.ask={q,res,confirm:!!opt.confirm,yes:opt.yes,no:opt.no};setStatus(a,'stuck');log(a.id,opt.confirm?`請你確認：${q}`:`卡住了，找你：${q}`);askQueue.push(a);if(!asking)openAsk(askQueue[0]);});}
+function openAsk(a){asking=a;const cf=a.ask.confirm;document.getElementById('mTitle').textContent=cf?`${a.id}（${a.role}）要你確認`:`${a.id}（${a.role}）卡住了，需要你`;document.getElementById('mQ').textContent=a.ask.q;
+  document.getElementById('mA').hidden=cf;document.querySelector('label[for=mA]').hidden=cf;
+  document.getElementById('mSend').textContent=cf?(a.ask.yes||'同意'):'回覆';document.getElementById('mSkip').textContent=cf?(a.ask.no||'先不要'):'你自己判斷';
   const t=document.getElementById('mA');t.value='';document.getElementById('modal').hidden=false;setTimeout(()=>t.focus(),30);}
 function answer(text){const a=asking;if(!a)return;document.getElementById('modal').hidden=true;asking=null;
-  const i=askQueue.indexOf(a);if(i>=0)askQueue.splice(i,1);const r=a.ask.res;a.ask=null;log(null,`你回覆 ${a.id}：${text||'你自己判斷'}`);r(text);
+  const i=askQueue.indexOf(a);if(i>=0)askQueue.splice(i,1);const r=a.ask.res,cf=a.ask.confirm;a.ask=null;log(null,cf?`你${text?'同意':'取消了'} ${a.id} 的請求`:`你回覆 ${a.id}：${text||'你自己判斷'}`);r(text);
   if(askQueue.length)setTimeout(()=>openAsk(askQueue[0]),300);}
-document.getElementById('mSend').onclick=()=>answer(document.getElementById('mA').value.trim());
+document.getElementById('mSend').onclick=()=>answer(asking&&asking.ask&&asking.ask.confirm?'yes':document.getElementById('mA').value.trim());
 document.getElementById('mSkip').onclick=()=>answer('');
 document.getElementById('modal').addEventListener('click',e=>{if(e.target.id==='modal'){document.getElementById('modal').hidden=true;asking=null;}});
 document.getElementById('needYou').onclick=()=>{const a=TEAM.find(x=>x.status==='stuck'&&x.ask);if(a)openAsk(a);};
@@ -495,8 +519,8 @@ const PROVIDERS={anthropic:{n:'Claude',c:'#d97757',def:'claude-sonnet-5-5'},open
   gemini:{n:'Gemini',c:'#4f8ff7',def:'gemini-flash-latest'},custom:{n:'自訂',c:'#a98bff',def:''}};
 const DEF={api:'',token:'',agents:{Alfred:{p:'anthropic',m:'claude-opus-5-5'},Curry:{p:'gemini',m:'gemini-flash-latest'},
   Michel:{p:'openai',m:'gpt-5.4-mini'},Mia:{p:'anthropic',m:'claude-sonnet-5-5'},Jackson:{p:'openai',m:'gpt-5.4-mini'},John:{p:'anthropic',m:'claude-sonnet-5-5'}}};
-let cfg=JSON.parse(JSON.stringify(DEF));
-try{const s=JSON.parse(localStorage.getItem('office-cfg')||'null');if(s){cfg.api=s.api||'';cfg.token=s.token||'';Object.assign(cfg.agents,s.agents||{});}}catch{}
+let cfg=JSON.parse(JSON.stringify(DEF));cfg.video={on:false,model:'veo-3.1-fast-generate-preview',aspect:'16:9'};
+try{const s=JSON.parse(localStorage.getItem('office-cfg')||'null');if(s){cfg.api=s.api||'';cfg.token=s.token||'';Object.assign(cfg.agents,s.agents||{});Object.assign(cfg.video,s.video||{});}}catch{}
 function saveCfg(){try{localStorage.setItem('office-cfg',JSON.stringify(cfg));}catch{}}
 let mode='pending',available={};
 const modeEl=document.getElementById('mode');
@@ -544,7 +568,12 @@ function placeTV(){const k=cv.clientWidth/W;if(!k)return;
 new ResizeObserver(placeTV).observe(cv);
 // YouTube iframe API over postMessage (no extra script needed)
 function yt(frame,func,args=[]){try{frame.contentWindow&&frame.contentWindow.postMessage(JSON.stringify({event:'command',func,args}),'*');}catch{}}
-function applyAudio(frame){yt(frame,'setVolume',[tvState.vol]);yt(frame,tvState.muted||tvState.vol===0?'mute':'unMute');}
+function applyAudio(frame){yt(frame,'setVolume',[tvState.vol]);yt(frame,tvState.muted||tvState.vol===0?'mute':'unMute');
+  const v=document.getElementById('tvVideo');v.volume=tvState.vol/100;v.muted=tvState.muted||tvState.vol===0;}
+function tvPlayLocal(url){const v=document.getElementById('tvVideo');tvState.on=true;tvState.local=url;tvState.needGesture=false;tvState.muted=false;
+  tvFrame.src='about:blank';tvFrame.hidden=true;v.hidden=false;v.src=url;applyAudio(tvFrame);v.play().catch(()=>{});
+  tvEl.hidden=false;tvBar.hidden=false;placeTV();syncAudioUI();log(null,'電視播放 Jackson 做好的影片');
+  TEAM.filter(a=>a.mode==='idle'&&a.status==='idle').forEach(a=>{if(Math.random()<.7)a.idleT=rnd(.5,3);});}
 function hook(frame){frame.addEventListener('load',()=>{if(frame.src==='about:blank')return;
   let n=0;const iv=setInterval(()=>{try{frame.contentWindow.postMessage(JSON.stringify({event:'listening',id:frame.id}),'*');}catch{}applyAudio(frame);if(++n>6)clearInterval(iv);},500);});}
 hook(tvFrame);hook(bigFrame);
@@ -557,12 +586,13 @@ function syncAudioUI(){volEl.value=tvState.vol;volTxt.textContent=tvState.vol;
 function tvOn(url,{gesture=true}={}){
   tvState.needGesture=!gesture;tvState.muted=!gesture;tvState.t=0;
   const src=ytEmbed(url,{mute:tvState.muted});if(!src)return false;
+  tvState.local=null;{const v=document.getElementById('tvVideo');v.pause();v.hidden=true;}tvFrame.hidden=false;
   tvState.on=true;tvState.src=url;tvFrame.src=src;tvEl.hidden=false;tvBar.hidden=false;placeTV();syncAudioUI();
   try{localStorage.setItem('office-tv',url);}catch{}
   log(null,'電視開始播放，大家可能會過來看');
   TEAM.filter(a=>a.mode==='idle'&&a.status==='idle').forEach(a=>{if(Math.random()<.6)a.idleT=rnd(.5,4);});
   return true;}
-function tvOffFn(){tvState.on=false;tvFrame.src='about:blank';tvEl.hidden=true;tvBar.hidden=true;try{localStorage.removeItem('office-tv');}catch{}
+function tvOffFn(){tvState.on=false;tvState.local=null;{const v=document.getElementById('tvVideo');v.pause();v.hidden=true;}tvFrame.hidden=false;tvFrame.src='about:blank';tvEl.hidden=true;tvBar.hidden=true;try{localStorage.removeItem('office-tv');}catch{}
   TEAM.forEach(a=>{if(a.spot&&a.spot.tv&&a.mode==='idle')a.idleT=rnd(0,1.5);});}
 volEl.addEventListener('input',()=>{tvState.vol=+volEl.value;if(tvState.vol>0&&!tvState.needGesture)tvState.muted=false;
   applyAudio(tvFrame);applyAudio(bigFrame);syncAudioUI();try{localStorage.setItem('office-tv-vol',tvState.vol);}catch{}});
@@ -579,9 +609,14 @@ document.getElementById('tvUrl').addEventListener('keydown',e=>{if(e.key==='Ente
 document.getElementById('tvCancel').onclick=()=>document.getElementById('tvDlg').hidden=true;
 document.getElementById('tvChange').onclick=openTvDlg;
 document.getElementById('tvOff').onclick=tvOffFn;
-document.getElementById('tvBigBtn').onclick=()=>{const src=ytEmbed(tvState.src,{mute:false,start:tvState.t});if(!src)return;
+document.getElementById('tvBigBtn').onclick=()=>{
+  if(tvState.local){const v=document.getElementById('tvVideo'),bv=document.getElementById('tvBigVideo');v.pause();bv.src=tvState.local;bv.currentTime=v.currentTime||0;
+    bv.hidden=false;bigFrame.hidden=true;document.getElementById('tvBig').hidden=false;bv.play().catch(()=>{});return;}
+  const src=ytEmbed(tvState.src,{mute:false,start:tvState.t});if(!src)return;bigFrame.hidden=false;document.getElementById('tvBigVideo').hidden=true;
   tvState.needGesture=false;tvState.muted=false;tvFrame.src='about:blank';bigFrame.src=src;document.getElementById('tvBig').hidden=false;syncAudioUI();};
-document.getElementById('tvBigClose').onclick=()=>{bigFrame.src='about:blank';document.getElementById('tvBig').hidden=true;
+document.getElementById('tvBigClose').onclick=()=>{const bv=document.getElementById('tvBigVideo');
+  if(tvState.local){const v=document.getElementById('tvVideo');v.currentTime=bv.currentTime||0;bv.pause();bv.hidden=true;document.getElementById('tvBig').hidden=true;v.play().catch(()=>{});return;}
+  bigFrame.src='about:blank';document.getElementById('tvBig').hidden=true;
   if(tvState.on)tvFrame.src=ytEmbed(tvState.src,{mute:tvState.muted,start:tvState.t});};
 // click the wall TV on the canvas
 cv.addEventListener('click',e=>{const r=cv.getBoundingClientRect(),k=r.width/W,px=(e.clientX-r.left)/k,py=(e.clientY-r.top)/k;
@@ -623,7 +658,12 @@ function modelOptions(p,current){
 function fillModelSelect(id,p,current){const sel=document.getElementById('sm-'+id),inp=document.getElementById('sc-'+id);
   sel.innerHTML=modelOptions(p,current);inp.hidden=true;
   sel.onchange=()=>{inp.hidden=sel.value!=='__custom';if(!inp.hidden){inp.value='';inp.focus();}};}
+const VPRICE=m=>/lite/.test(m)?0.05:/fast|omni/.test(m)?0.10:0.40;
+function fillVideoModels(){const sel=document.getElementById('vModel');const list=(modelCache.gemini_video||[]).slice();
+  if(cfg.video.model&&!list.includes(cfg.video.model))list.unshift(cfg.video.model);
+  sel.innerHTML=list.map(m=>`<option value="${esc(m)}" ${m===cfg.video.model?'selected':''}>${esc(m)}　·　約 $${VPRICE(m).toFixed(2)}/秒</option>`).join('');}
 function openSettings(){document.getElementById('sApi').value=cfg.api;document.getElementById('sTok').value=cfg.token;
+  document.getElementById('vOn').checked=!!cfg.video.on;document.getElementById('vAspect').value=cfg.video.aspect;fillVideoModels();
   document.getElementById('sAgents').innerHTML=TEAM.map(a=>{const c=cfg.agents[a.id];return `<div class="srow">
     <span class="sname"><span class="dot" style="background:${a.acc}"></span>${a.id}<small>${a.role}</small></span>
     <label class="vh" for="sp-${a.id}">${a.id} 的 AI</label>
@@ -641,6 +681,8 @@ async function loadModels(){const tmp={api:document.getElementById('sApi').value
     if(!r.ok)throw new Error('HTTP '+r.status);const pv=(await r.json()).providers||{};
     for(const k of Object.keys(pv).filter(k=>pv[k])){try{const m=await (await fetch(apiURL('/api/models?provider='+k,tmp),{headers:hdrs(tmp)})).json();
       if(m.models){modelCache[k]=m.models;got.push(`${PROVIDERS[k].n} ${m.models.length} 個`);}}catch{}}
+    if(pv.gemini){try{const m=await (await fetch(apiURL('/api/models?provider=gemini_video',tmp),{headers:hdrs(tmp)})).json();if(m.models){modelCache.gemini_video=m.models;got.push(`影片模型 ${m.models.length} 個`);}}catch{}}
+    fillVideoModels();
     try{localStorage.setItem('office-models',JSON.stringify(modelCache));}catch{}
     TEAM.forEach(a=>{const ps=document.getElementById('sp-'+a.id),ms=document.getElementById('sm-'+a.id);if(!ps||!ms)return;
       const cur=ms.value&&ms.value!=='__custom'?ms.value:cfg.agents[a.id].m;fillModelSelect(a.id,ps.value,cur);});
@@ -653,15 +695,93 @@ document.getElementById('sSave').onclick=()=>{cfg.api=document.getElementById('s
   for(const a of TEAM){const ms=document.getElementById('sm-'+a.id);const m=ms.value==='__custom'?document.getElementById('sc-'+a.id).value.trim():ms.value;
     if(!m){document.getElementById('sMsg').textContent=`${a.id} 還沒選模型。`;return;}
     cfg.agents[a.id]={p:document.getElementById('sp-'+a.id).value,m};}
+  cfg.video={on:document.getElementById('vOn').checked,model:document.getElementById('vModel').value||cfg.video.model,aspect:document.getElementById('vAspect').value};
   saveCfg();setEl.hidden=true;setMode('pending');connect();};
 setEl.addEventListener('click',e=>{if(e.target===setEl)setEl.hidden=true;});
 function parseJSON(t){const m=String(t).match(/\{[\s\S]*\}/);return JSON.parse(m?m[0]:t);}
 function fakeRun(onProg,ms=rnd(3500,6500)){return new Promise(res=>{const t0=performance.now();const iv=setInterval(()=>{const p=(performance.now()-t0)/ms;onProg&&onProg(Math.min(.95,p));if(p>=1){clearInterval(iv);res();}},120);});}
 
+/* ================= video pipeline (Veo → merge in the browser) ================= */
+const videoOn=()=>mode==='live'&&cfg.video&&cfg.video.on&&available.gemini;
+function targetSeconds(cmd){let m=cmd.match(/(\d+)\s*分(?:鐘)?\s*(\d+)?\s*秒?/);if(m)return (+m[1])*60+(+(m[2]||0));
+  m=cmd.match(/(\d+)\s*(秒|s\b|sec)/i);if(m)return +m[1];return 32;}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+async function api(path,opt={}){const r=await fetch(apiURL(path),Object.assign({headers:hdrs()},opt));
+  const j=await r.json().catch(()=>({error:'後端回應格式錯誤（HTTP '+r.status+'）'}));if(!r.ok||j.error)throw new Error(j.error||('HTTP '+r.status));return j;}
+async function fetchClip(uri){let start=0,total=Infinity;const parts=[];
+  while(start<total){const r=await fetch(apiURL('/api/video/file?uri='+encodeURIComponent(uri)+'&start='+start),{headers:hdrs()});
+    if(!r.ok){const j=await r.json().catch(()=>({}));throw new Error(j.error||('下載失敗 HTTP '+r.status));}
+    total=+r.headers.get('X-Total-Size')||0;const b=await r.arrayBuffer();if(!b.byteLength)break;parts.push(b);start+=b.byteLength;}
+  return URL.createObjectURL(new Blob(parts,{type:'video/mp4'}));}
+async function genClip(prompt,onState){const {op}=await api('/api/video/start',{method:'POST',body:JSON.stringify({model:cfg.video.model,prompt,aspect:cfg.video.aspect})});
+  const t0=Date.now();
+  while(Date.now()-t0<9*60*1000){await sleep(9000);const st=await api('/api/video/status?op='+encodeURIComponent(op));onState&&onState((Date.now()-t0)/60000);
+    if(st.done){if(st.error)throw new Error(st.error);return await fetchClip(st.uri);}}
+  throw new Error('等太久了，這個鏡頭放棄');}
+const once=(el,ev)=>new Promise(r=>el.addEventListener(ev,r,{once:true}));
+function srtTime(t){const ms=Math.round(t*1000),h=ms/3600000|0,m=ms/60000%60|0,s=ms/1000%60|0,x=ms%1000;return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')},${String(x).padStart(3,'0')}`;}
+async function mergeClips(clips,onProg){
+  const mk=()=>{const v=document.createElement('video');v.playsInline=true;v.preload='auto';return v;};
+  const A=mk(),B=mk();A.src=clips[0].url;await once(A,'loadedmetadata');
+  const Wd=A.videoWidth||1280,Hd=A.videoHeight||720;const c=document.createElement('canvas');c.width=Wd;c.height=Hd;const g=c.getContext('2d');
+  const ac=new AudioContext();await ac.resume();const dest=ac.createMediaStreamDestination();
+  [A,B].forEach(v=>ac.createMediaElementSource(v).connect(dest));
+  const stream=new MediaStream([...c.captureStream(30).getVideoTracks(),...dest.stream.getAudioTracks()]);
+  const mime=['video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/mp4','video/webm;codecs=vp9,opus','video/webm'].find(t=>window.MediaRecorder&&MediaRecorder.isTypeSupported(t));
+  if(!mime)throw new Error('這個瀏覽器不支援錄影合併，請用電腦版 Chrome 或 Edge');
+  const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:6e6});const chunks=[];rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
+  let cur=A,nxt=B,sub='';const fs=Math.round(Hd*.05);
+  const iv=setInterval(()=>{g.fillStyle='#000';g.fillRect(0,0,Wd,Hd);if(cur.readyState>=2)g.drawImage(cur,0,0,Wd,Hd);
+    if(sub){g.font=`700 ${fs}px "Noto Sans TC",sans-serif`;g.textAlign='center';g.textBaseline='bottom';g.lineWidth=fs*.18;g.strokeStyle='rgba(0,0,0,.85)';
+      g.strokeText(sub,Wd/2,Hd-fs*.9);g.fillStyle='#fff';g.fillText(sub,Wd/2,Hd-fs*.9);}},33);
+  const srt=[];let tAcc=0;rec.start(1000);
+  for(let i=0;i<clips.length;i++){
+    if(i+1<clips.length){nxt.src=clips[i+1].url;nxt.load();}
+    sub=clips[i].sub||'';await cur.play();await once(cur,'ended');
+    const d=cur.duration||8;if(sub)srt.push(`${srt.length+1}\n${srtTime(tAcc)} --> ${srtTime(tAcc+d)}\n${sub}\n`);tAcc+=d;
+    onProg&&onProg((i+1)/clips.length);[cur,nxt]=[nxt,cur];}
+  clearInterval(iv);rec.stop();await once(rec,'stop');ac.close();
+  const type=mime.split(';')[0];
+  return {url:URL.createObjectURL(new Blob(chunks,{type})),mime:type,seconds:tAcc,
+    srt:srt.length?URL.createObjectURL(new Blob([srt.join('\n')],{type:'text/plain'})):null};}
+const shotsPrompt=(cmd,board,n)=>`你是剪輯師 Jackson。老闆的任務：「${cmd}」
+以下是你寫好的分鏡：
+${board.slice(0,5000)}
+
+請把它轉成要交給 Google Veo 影片模型的鏡頭清單，剛好 ${n} 個鏡頭，每個鏡頭 8 秒，依播放順序排列。
+規則：
+- prompt 用英文，寫清楚畫面、動作、鏡頭運動、光線與畫風；每個 prompt 都要完整重複主要角色的外觀（年齡、髮型、服裝），讓不同鏡頭的角色長得一致；所有鏡頭用同一種畫風。
+- 有台詞時，在 prompt 裡寫出誰說了什麼，台詞保留繁體中文原文並加上引號。
+- 不要真實名人、品牌商標或有版權的角色。
+- subtitle 是這個鏡頭的繁體中文字幕（台詞或旁白，20 字內，可以是空字串）。
+只輸出 JSON：{"shots":[{"prompt":"...","subtitle":"..."}]}`;
+async function makeVideo(a,cmd,st,boardSlot){
+  const secs=Math.max(8,Math.min(120,targetSeconds(cmd)));const n=Math.min(15,Math.ceil(secs/8));
+  setStatus(a,'work','把分鏡轉成鏡頭清單');a.progress=.05;
+  const raw=await ai(a,shotsPrompt(cmd,boardSlot.text,n),p=>a.progress=.05+p*.05);
+  let shots=(parseJSON(raw).shots||[]).filter(x=>x&&x.prompt).slice(0,15);if(!shots.length)throw new Error('沒有產出鏡頭清單');
+  const cost=shots.length*8*VPRICE(cfg.video.model);
+  const ok=await askUser(a,`我要用 ${cfg.video.model} 生成 ${shots.length} 個鏡頭，共約 ${shots.length*8} 秒（${cfg.video.aspect}），預估約 US$${cost.toFixed(2)}。失敗重做的鏡頭會另外計費。要開始嗎？`,{confirm:true,yes:'開始生成',no:'先不要，只交分鏡'});
+  if(!ok){setStatus(a,'work',st.title);log(a.id,'老闆決定先不生成影片，只交分鏡');return;}
+  log(a.id,`開始生成 ${shots.length} 個鏡頭，每個大約 1 到 4 分鐘`);
+  const urls=new Array(shots.length).fill(null);let done=0,failed=0,next=0;
+  const upd=()=>{setStatus(a,'work',`生成影片 ${done}/${shots.length}${failed?`（失敗 ${failed}）`:''}`);a.progress=.1+(done/shots.length)*.75;};upd();
+  const worker=async()=>{while(next<shots.length){const i=next++;
+    try{urls[i]=await genClip(shots[i].prompt);done++;log(a.id,`鏡頭 ${i+1} 完成`);}
+    catch(e){failed++;log(a.id,`鏡頭 ${i+1} 失敗：${e.message||e}`);}upd();}};
+  await Promise.all([worker(),worker(),worker()]);
+  const clips=shots.map((x,i)=>({url:urls[i],sub:x.subtitle})).filter(x=>x.url);
+  if(!clips.length)throw new Error('所有鏡頭都失敗了');
+  setStatus(a,'work','合併成一支影片（請讓這個分頁保持開著）');log(a.id,'所有鏡頭到齊，開始合併，大約需要跟影片一樣長的時間');
+  const out=await mergeClips(clips,p=>a.progress=.85+p*.15);
+  deliverables.push({idx:-2,who:'Jackson',title:'成片',video:out.url,mime:out.mime,srt:out.srt,
+    text:`**長度**：約 ${Math.round(out.seconds)} 秒，${clips.length} 個鏡頭${failed?`（${failed} 個失敗已略過）`:''}\n\n**鏡頭清單**\n`+shots.map((x,i)=>`${i+1}. ${urls[i]?'':'（失敗）'}${x.subtitle||'（無字幕）'}`).join('\n')});
+  viewing='d'+(deliverables.length-1);renderOut();log(a.id,'影片完成，可以在交付成果預覽、下載，或丟到電視播');}
+
 /* ================= prompts ================= */
-const roster=TEAM.filter(a=>a.id!=='Alfred').map(a=>`- ${a.id}（${a.role}）：${a.desc}`).join('\n');
+const roster=()=>TEAM.filter(a=>a.id!=='Alfred').map(a=>`- ${a.id}（${a.role}）：${a.id==='Jackson'&&videoOn()?'短影音分鏡，並用 Veo 生成每個鏡頭、自動合併成一支完整影片（需要影片時一定要指派給 Jackson）':a.desc}`).join('\n');
 const planPrompt=(cmd,notes)=>`你是 Alfred，一個 AI 團隊的主管。團隊成員：
-${roster}
+${roster()}
 （John 會在最後統一審查，不需要指派給 John。）
 
 老闆交代的任務：「${cmd}」
@@ -740,7 +860,9 @@ async function mission(cmd){
         const m=text.trim().match(/^NEED_USER[:：]\s*(.+)/);
         if(m&&k<2){const ans=await askUser(a,m[1]);extra+=(extra?'；':'')+(ans||'請自行做合理假設');setStatus(a,'work',s.title);a.progress=.05;continue;}
         slot.text=text;break;}
-        deliverables.push(slot);a.progress=1;setStatus(a,'done',s.title);log(a.id,`完成「${s.title}」`);renderOut();
+        deliverables.push(slot);
+        if(a.id==='Jackson'&&videoOn()){renderOut();try{await makeVideo(a,cmd,s,slot);}catch(e){log(a.id,'影片生成中斷：'+(e.message||e));}}
+        a.progress=1;setStatus(a,'done',s.title);log(a.id,`完成「${s.title}」`);renderOut();
       }catch(e){a.progress=0;setStatus(a,'err',s.title);log(a.id,`「${s.title}」失敗：${e.code==='rate_limited'?'呼叫太頻繁，稍後再試':(e.message||e.code||e)}`);}
       done[i].r();};
     chain[a.id]=(chain[a.id]||Promise.resolve()).then(job);});
