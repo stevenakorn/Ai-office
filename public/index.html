@@ -509,6 +509,7 @@ function drawPackets(dt){for(let i=packets.length-1;i>=0;i--){const p=packets[i]
 let last=performance.now();
 function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;perfT+=dt;
   TEAM.forEach(a=>update(a,dt));
+  updateWire();
   if(R3){render3D(dt);requestAnimationFrame(frame);return;}
   ctx.clearRect(0,0,W,H);drawRoom();
   const list=items.map(it=>({k:it.key,d:it.draw})).concat(TEAM.map(a=>({k:(a.sitting&&a.spot&&a.spot.sit&&a.mode==='idle')?a.x+a.y+1.6:a.x+a.y+(a.sitting?.02:0),d:()=>drawAgent(a)})));
@@ -846,10 +847,18 @@ document.getElementById('copy').onclick=async e=>{const t=viewing==='final'?fina
   try{await navigator.clipboard.writeText(t||'');e.target.textContent='已複製';}catch{e.target.textContent='無法複製';}setTimeout(()=>e.target.textContent='複製',1500);};
 
 /* ================= wire from button to Alfred ================= */
-function wire(){const svg=document.getElementById('wire');const br=document.getElementById('dispatch').getBoundingClientRect();
-  const [x2,y2]=agentClientPos(byId.Alfred);const x1=br.left+br.width/2,y1=br.bottom;
-  svg.innerHTML=`<path d="M${x1},${y1} C${x1},${(y1+y2)/2} ${x2+80},${y2-60} ${x2},${y2}" fill="none" stroke="#ff5b4f" stroke-width="1.6" stroke-dasharray="6 5"><animate attributeName="stroke-dashoffset" from="60" to="0" dur="1s" repeatCount="indefinite"/></path><circle cx="${x2}" cy="${y2}" r="4" fill="#ff5b4f"/>`;
-  setTimeout(()=>svg.innerHTML='',3200);}
+// 派工提示線：每一格都重新計算，終點跟著 Alfred 走，他坐回座位後再淡出
+let wireT=0,wireEnd=0;
+function wire(){wireT=performance.now();wireEnd=0;
+  const svg=document.getElementById('wire');svg.style.opacity='1';svg.style.transition='';
+  svg.innerHTML=`<path id="wireP" fill="none" stroke="#ff5b4f" stroke-width="1.6" stroke-dasharray="6 5"><animate attributeName="stroke-dashoffset" from="60" to="0" dur="1s" repeatCount="indefinite"/></path><circle id="wireC" r="4" fill="#ff5b4f"/>`;}
+function updateWire(){if(!wireT)return;const svg=document.getElementById('wire'),pth=document.getElementById('wireP'),c=document.getElementById('wireC');if(!pth)return;
+  const A=byId.Alfred,now=performance.now();
+  if(!wireEnd&&(now-wireT>2500)&&!A.path.length)wireEnd=now;            // 走到定位後再留一下
+  if(now-wireT>20000&&!wireEnd)wireEnd=now;                              // 保險：最多 20 秒
+  if(wireEnd&&now-wireEnd>900){svg.style.transition='opacity .5s';svg.style.opacity='0';if(now-wireEnd>1500){svg.innerHTML='';wireT=0;}return;}
+  const br=document.getElementById('dispatch').getBoundingClientRect();const [x2,y2]=agentClientPos(A);const x1=br.left+br.width/2,y1=br.bottom;
+  pth.setAttribute('d',`M${x1},${y1} C${x1},${(y1+y2)/2} ${x2+80},${y2-60} ${x2},${y2}`);c.setAttribute('cx',x2);c.setAttribute('cy',y2);}
 
 function handoff(f,t,label){const wrap=document.getElementById('cardsWrap'),svg=document.getElementById('arcs');if(!byId[f]||!byId[t]||f===t)return;
   const A=byId[f].card.getBoundingClientRect(),B=byId[t].card.getBoundingClientRect(),R=wrap.getBoundingClientRect();
