@@ -448,7 +448,7 @@ try{const s=JSON.parse(localStorage.getItem('office-cfg')||'null');if(s){cfg.api
 function saveCfg(){try{localStorage.setItem('office-cfg',JSON.stringify(cfg));}catch{}}
 let mode='pending',available={};
 const modeEl=document.getElementById('mode');
-const apiURL=(p,c=cfg)=>(c.api||'').replace(/\/$/,'')+p;
+const apiURL=(p,c=cfg)=>{const [path,q]=p.split('?');return (c.api||'').replace(/\/$/,'')+'/api/index?__p='+encodeURIComponent(path.replace(/^\/api\//,''))+(q?'&'+q:'');};
 const hdrs=(c=cfg)=>Object.assign({'Content-Type':'application/json'},c.token?{'X-Office-Token':c.token}:{});
 function setMode(m,msg){mode=m;modeEl.textContent=m==='live'?'多 AI 連線中':m==='demo'?'示範模式':'連線中…';modeEl.className='mode'+(m==='live'?' live':'');
   document.getElementById('note').textContent=msg||'';}
@@ -456,12 +456,12 @@ async function connect(){
   if(location.protocol==='file:'&&!cfg.api){setMode('demo','你是直接開啟檔案，沒有連到後端，所以先跑示範模式。部署到 Vercel，或在本機執行 python api/index.py 後，就會串接真的 AI。');refreshCards();return;}
   try{const r=await fetch(apiURL('/api/providers'),{headers:hdrs()});
     if(r.status===401){setMode('demo','存取密碼不對。請到「AI 設定」輸入你在 Vercel 設定的 OFFICE_TOKEN。');return;}
-    if(!r.ok)throw new Error('HTTP '+r.status);const j=await r.json();available=j.providers||{};if(j.custom_name)PROVIDERS.custom.n=j.custom_name;
+    if(!r.ok)throw new Error('HTTP '+r.status);const j=await r.json().catch(()=>{throw new Error('回應不是 JSON')});available=j.providers||{};if(j.custom_name)PROVIDERS.custom.n=j.custom_name;
     const on=Object.keys(available).filter(k=>available[k]);
     if(!on.length){setMode('demo','後端連上了，但還沒有設定任何 API 金鑰。');return;}
     const miss=TEAM.filter(a=>!available[cfg.agents[a.id].p]).map(a=>a.id);
     setMode('live','已連線：'+on.map(k=>PROVIDERS[k].n).join('、')+(miss.length?`。注意：${miss.join('、')} 指定的 AI 沒有金鑰，請到「AI 設定」調整。`:''));
-  }catch(e){setMode('demo','連不到後端（'+apiURL('/api/providers')+'），先跑示範模式。');}
+  }catch(e){setMode('demo','連不到後端（'+apiURL('/api/providers')+'，'+(e.message||e)+'），先跑示範模式。');}
   finally{refreshCards();}}
 setTimeout(connect,0);
 async function ai(agent,prompt,onProg){
@@ -490,11 +490,11 @@ function openSettings(){document.getElementById('sApi').value=cfg.api;document.g
 async function loadModels(){const tmp={api:document.getElementById('sApi').value.trim(),token:document.getElementById('sTok').value.trim()};
   const msg=document.getElementById('sMsg');msg.textContent='讀取中…';const got=[];
   try{const r=await fetch(apiURL('/api/providers',tmp),{headers:hdrs(tmp)});if(r.status===401){msg.textContent='存取密碼不對。';return;}
-    const pv=(await r.json()).providers||{};
+    if(!r.ok)throw new Error('HTTP '+r.status);const pv=(await r.json()).providers||{};
     for(const k of Object.keys(pv).filter(k=>pv[k])){try{const m=await (await fetch(apiURL('/api/models?provider='+k,tmp),{headers:hdrs(tmp)})).json();
       const dl=document.getElementById('dl-'+k);if(dl&&m.models){dl.innerHTML=m.models.map(x=>`<option value="${esc(x)}">`).join('');got.push(`${PROVIDERS[k].n} ${m.models.length} 個`);}}catch{}}
     msg.textContent=got.length?`已讀取：${got.join('、')}。點模型欄位就能從清單挑。`:'後端沒有回傳任何模型，請確認金鑰。';}
-  catch{msg.textContent='連不到後端，請確認網址。';}}
+  catch(e){msg.textContent='連不到後端（'+(e.message||e)+'），請確認網址。';}}
 document.getElementById('openSettings').onclick=openSettings;
 document.getElementById('sLoad').onclick=loadModels;
 document.getElementById('sCancel').onclick=()=>setEl.hidden=true;
