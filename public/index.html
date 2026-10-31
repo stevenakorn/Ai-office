@@ -772,9 +772,17 @@ function narrInfo(){const n=narrSegments().length;document.getElementById('narrI
   if(v){document.getElementById('voOn').checked=v.on;document.getElementById('voVoice').value=v.voice||'Charon';if(v.style)document.getElementById('voStyle').value=v.style;}}catch{}
   ['input','change'].forEach(ev=>document.getElementById('narrBox').addEventListener(ev,narrInfo));}
 function syncNarrBox(){const box=document.getElementById('narrBox');box.hidden=!videoOn();if(!box.hidden)narrInfo();}
-async function genClip(prompt,onState){
+// Tier 1 只允許每分鐘 4 次影片請求：排隊、間隔 16 秒，被限流就照指示等待後重送
+let lastStart=0,startChain=Promise.resolve();
+function startSlot(){const p=startChain.then(async()=>{const wait=lastStart+16000-Date.now();if(wait>0)await sleep(wait);lastStart=Date.now();});startChain=p.catch(()=>{});return p;}
+async function startVideo(body,onWait){
+  for(let k=0;;k++){await startSlot();
+    try{return await api('/api/video/start',{method:'POST',body:JSON.stringify(body)});}
+    catch(e){const m=e.message||'';if(!/429|rate.?limit|quota|RESOURCE_EXHAUSTED/i.test(m)||k>=5)throw e;
+      const secs=+((/retry in (\d+)/i.exec(m)||[])[1]||30)+3;onWait&&onWait(secs);lastStart=Date.now()+secs*1000-16000;}}}
+async function genClip(prompt,onState,onWait){
   const first=/veo/.test(cfg.video.model)?prompt:'An 8-second video. '+prompt;
-  const r0=await api('/api/video/start',{method:'POST',body:JSON.stringify({model:cfg.video.model,prompt:first,aspect:cfg.video.aspect})});
+  const r0=await startVideo({model:cfg.video.model,prompt:first,aspect:cfg.video.aspect},onWait);
   if(r0.uri)return await fetchClip(r0.uri);
   const op=r0.op;
   const t0=Date.now();
@@ -876,20 +884,21 @@ async function makeVideo(a,cmd,st,boardSlot){
   const cost=shots.length*8*VPRICE(cfg.video.model);
   const ok=await askUser(a,`我要用 ${cfg.video.model} 生成 ${shots.length} 個鏡頭，共約 ${shots.length*8} 秒（${cfg.video.aspect}），預估約 US$${cost.toFixed(2)}${useVO?`，另外用「${vo.voice}」做 ${shots.length} 段 AI 配音（費用很低）`:''}。失敗重做的鏡頭會另外計費。要開始嗎？`,{confirm:true,yes:'開始生成',no:'先不要，只交分鏡'});
   if(!ok){setStatus(a,'work',st.title);log(a.id,'老闆決定先不生成影片，只交分鏡');return;}
-  log(a.id,`開始生成 ${shots.length} 個鏡頭${useVO?'和配音':''}，每個鏡頭大約 1 到 4 分鐘`);
+  log(a.id,`開始生成 ${shots.length} 個鏡頭${useVO?'和配音':''}。Google 限制每分鐘最多 4 次，鏡頭會排隊送出，全部大約需要 ${Math.ceil(shots.length*16/60)+2} 分鐘以上`);
   const urls=new Array(shots.length).fill(null),voices=new Array(shots.length).fill(null);let done=0,failed=0,next=0;
   const upd=()=>{setStatus(a,'work',`生成影片 ${done}/${shots.length}${failed?`（失敗 ${failed}）`:''}`);a.progress=.1+(done/shots.length)*.75;};upd();
   const voJob=useVO?(async()=>{for(let i=0;i<shots.length;i++){try{voices[i]=await genVoice(shots[i].subtitle,vo);}catch(e){log(a.id,`第 ${i+1} 段配音失敗：${e.message||e}`);}}
     const okN=voices.filter(Boolean).length;log(a.id,`配音完成 ${okN}/${shots.length} 段`);})():Promise.resolve();
   const worker=async()=>{while(next<shots.length){const i=next++;
-    try{try{urls[i]=await genClip(shots[i].prompt);}
+    try{const onWait=s=>log(a.id,`鏡頭 ${i+1} 碰到 Google 每分鐘次數上限，等 ${s} 秒後自動重送`);
+      try{urls[i]=await genClip(shots[i].prompt,null,onWait);}
       catch(e){if(!/real people|likeness|person|celebrit|人物|名人/i.test(e.message||''))throw e;
         log(a.id,`鏡頭 ${i+1} 被擋（疑似提到真實人物），改寫成外觀描述後重試`);
         const fixed=await ai(a,`下面是一段要交給 Google 影片模型的英文畫面描述，因為提到真實人物（包含歷史人物）的名字而被拒絕。請改寫：拿掉所有人名、稱號和拼音，改用外觀、服裝、年齡來描述人物，其他畫面內容、畫風和鏡頭運動維持不變。只輸出改寫後的英文描述本身。\n\n${shots[i].prompt}`);
-        shots[i].prompt=(fixed||'').trim()||shots[i].prompt;urls[i]=await genClip(shots[i].prompt);}
+        shots[i].prompt=(fixed||'').trim()||shots[i].prompt;urls[i]=await genClip(shots[i].prompt,null,onWait);}
       done++;log(a.id,`鏡頭 ${i+1} 完成`);}
     catch(e){failed++;log(a.id,`鏡頭 ${i+1} 失敗：${e.message||e}`);}upd();}};
-  await Promise.all([worker(),worker(),worker(),voJob]);
+  await Promise.all([worker(),worker(),voJob]);
   const clips=shots.map((x,i)=>({url:urls[i],sub:x.subtitle,vo:voices[i],hook:i===0&&!!x.narr})).filter(x=>x.url||(x.vo&&x.sub));
   if(!clips.some(x=>x.url))throw new Error('所有鏡頭都失敗了');
   setStatus(a,'work','合併成一支影片（請讓這個分頁保持開著）');log(a.id,'所有鏡頭到齊，開始合併，大約需要跟影片一樣長的時間');
