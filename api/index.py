@@ -269,7 +269,7 @@ def video_start():
         try:
             r = requests.post(f"https://{VIDEO_HOST}/v1beta/interactions",
                               headers={**gkey(), "Content-Type": "application/json"},
-                              json={"model": model, "input": prompt, "store": False, "background": False, "stream": False,
+                              json={"model": model, "input": prompt, "store": True, "background": False, "stream": False,
                                     "response_format": {"type": "video", "aspect_ratio": aspect,
                                                         "resolution": "720p", "delivery": "uri"}},
                               timeout=TIMEOUT_VIDEO)
