@@ -362,6 +362,59 @@ def video_file():
     return out
 
 
+# ---------------------------------------------------------------- AI 配音（Gemini TTS）
+TTS_MODELS = ["gemini-3.8-flash-tts", "gemini-3.8-flash-lite-tts", "gemini-3.1-flash-tts-preview", "gemini-2.5-flash-tts"]
+VOICE_RE = re.compile(r"^[A-Za-z0-9_\-]{1,40}$")
+
+
+@app.post("/api/tts")
+def tts():
+    if (bad := unauthorized()):
+        return bad
+    if not configured()["gemini"]:
+        return jsonify(error="後端沒有設定 GEMINI_API_KEY"), 400
+    body = request.get_json(silent=True) or {}
+    text = (body.get("text") or "").strip()
+    voice = body.get("voice") or "Charon"
+    style = (body.get("style") or "").strip()[:200]
+    if not text or len(text) > 600 or not VOICE_RE.match(voice):
+        return jsonify(error="配音文字或聲音設定不正確"), 400
+    first = body.get("model")
+    models = ([first] if first and MODEL_RE.match(first) else []) + [m for m in TTS_MODELS if m != first]
+    # 新版（3.8）用 voice + speechMetadata；舊版用 prebuiltVoiceConfig
+    schemas = [
+        ({"text": text, **({"speechMetadata": {"style": style}} if style else {})}, {"voiceConfig": {"voice": voice}}),
+        ({"text": text}, {"voiceConfig": {"prebuiltVoiceConfig": {"voiceName": voice}}}),
+    ]
+    last = "沒有可用的配音模型"
+    for model in models:
+        for part, speech in schemas:
+            try:
+                r = requests.post(f"https://{VIDEO_HOST}/v1beta/models/{model}:generateContent",
+                                  headers={**gkey(), "Content-Type": "application/json"},
+                                  json={"contents": [{"role": "user", "parts": [part]}],
+                                        "generationConfig": {"responseModalities": ["AUDIO"], "speechConfig": speech}},
+                                  timeout=90)
+            except requests.RequestException as e:
+                return jsonify(error=f"連線失敗：{e.__class__.__name__}"), 502
+            if r.status_code == 404:
+                last = f"{model} 不存在"
+                break  # 換下一個模型
+            if r.status_code >= 400:
+                try:
+                    last = (r.json().get("error") or {}).get("message") or r.text[:200]
+                except Exception:
+                    last = r.text[:200]
+                continue  # 換另一種格式
+            for c in (r.json().get("candidates") or []):
+                for p in (c.get("content") or {}).get("parts") or []:
+                    d = p.get("inlineData") or p.get("inline_data")
+                    if d and d.get("data"):
+                        return jsonify(data=d["data"], mime=d.get("mimeType") or d.get("mime_type") or "audio/L16;rate=24000", model=model)
+            last = "配音模型沒有回傳聲音"
+    return jsonify(error=f"配音失敗：{last}"), 502
+
+
 # 本機執行時順便提供網頁；在 Vercel 上由 public/ 直接提供
 @app.get("/")
 def home():
