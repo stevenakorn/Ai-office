@@ -261,18 +261,19 @@ boxItem(10.2,2.6,1.6,1.6,18,'#c49a6c');
 boxItem(12.4,5.0,1.5,.5,42,'#9a7650',()=>{const cs=['#d0574b','#4f8fd6','#e3b04a','#4fae86','#9b6ad6'];
   for(let r=0;r<3;r++)for(let i=0;i<6;i++){const x=12.5+i*.22;poly([iso(x,5.5,6+r*12),iso(x+.15,5.5,6+r*12),iso(x+.15,5.5,14+r*12),iso(x,5.5,14+r*12)],cs[(i+r)%5]);}});
 boxItem(7.6,6.6,.8,.8,52,'#2b2f38',()=>{poly(faceL(7.6,6.6,.8,.8,22,46,.1),'#6bb6ff');poly(faceL(7.6,6.6,.8,.8,6,14,.2),'#14161b');});
-// rec area
-boxItem(1.0,6.6,2.6,1.4,14,'#2f6b46',()=>{poly([iso(2.3,6.6,14),iso(2.3,8,14),iso(2.3,8,19),iso(2.3,6.6,19)],'rgba(240,240,240,.85)');
-  poly([iso(1.05,7.28,14.2),iso(3.55,7.28,14.2),iso(3.55,7.32,14.2),iso(1.05,7.32,14.2)],'rgba(255,255,255,.5)');});
-boxItem(0.6,9.0,1.8,.7,16,'#7a5236',()=>{poly([iso(.7,9.05,16.2),iso(2.3,9.05,16.2),iso(2.3,9.65,16.2),iso(.7,9.65,16.2)],'#3f8a54');
-  for(let i=0;i<4;i++){const x=.85+i*.4;poly([iso(x,8.9,17),iso(x+.05,8.9,17),iso(x+.05,9.8,17),iso(x,9.8,17)],'#c8cbd2');}});
-// lounge
-add(0,()=>{poly([iso(9,8),iso(13,8),iso(13,11),iso(9,11)],'#b9606d');poly([iso(9.2,8.2),iso(12.8,8.2),iso(12.8,10.8),iso(9.2,10.8)],'#cf7682');});
-boxItem(9.6,7.4,2.8,.9,12,'#d98a95',()=>{drawBox(9.6,7.4,2.8,.3,14,'#e39aa4',12);drawBox(9.6,7.4,.3,.9,8,'#e39aa4',12);drawBox(12.1,7.4,.3,.9,8,'#e39aa4',12);});
-boxItem(10.4,9.0,1.2,.7,9,'#e6d8b8',()=>{drawBox(10.8,9.2,.2,.2,4,'#f3f0ea',9);});
+// lounge in front of the TV: rug, sofa facing the wall TV, coffee table, bean bags
+const SOFA_SEATS=[[3.55,7.6],[3.55,8.7],[3.55,9.8]];
+add(0,()=>{poly([iso(.6,6.5),iso(4.8,6.5),iso(4.8,11),iso(.6,11)],'#b9606d');poly([iso(.8,6.7),iso(4.6,6.7),iso(4.6,10.8),iso(.8,10.8)],'#cf7682');});
+boxItem(3.3,7.0,.9,3.4,12,'#d98a95',()=>{drawBox(3.9,7.0,.3,3.4,14,'#e39aa4',12);drawBox(3.3,7.0,.9,.3,8,'#e39aa4',12);drawBox(3.3,10.1,.9,.3,8,'#e39aa4',12);});
+boxItem(2.0,8.1,.7,1.2,9,'#e6d8b8',()=>{drawBox(2.2,8.5,.2,.2,4,'#f3f0ea',9);drawBox(2.3,8.9,.15,.25,3,'#c75b6a',9);});
 function beanBag(x,y,col){add(x+y,()=>{const [sx,sy]=iso(x,y);ctx.fillStyle='rgba(0,0,0,.3)';ctx.beginPath();ctx.ellipse(sx,sy+2,16,7,0,0,7);ctx.fill();
   ctx.fillStyle=col;ctx.beginPath();ctx.ellipse(sx,sy-6,15,11,0,0,7);ctx.fill();ctx.fillStyle=shade(col,.15);ctx.beginPath();ctx.ellipse(sx-3,sy-10,7,4,0,0,7);ctx.fill();},[x-.35,y-.35,.7,.7]);}
-beanBag(9.3,10.4,'#e06a4f');beanBag(12.6,10.7,'#4a6ad0');
+beanBag(1.4,10.3,'#e06a4f');beanBag(1.4,7.1,'#4a6ad0');
+// game area (moved to the right side): ping-pong table and foosball
+boxItem(9.4,7.6,2.6,1.4,14,'#2f6b46',()=>{poly([iso(10.7,7.6,14),iso(10.7,9,14),iso(10.7,9,19),iso(10.7,7.6,19)],'rgba(240,240,240,.85)');
+  poly([iso(9.45,8.28,14.2),iso(11.95,8.28,14.2),iso(11.95,8.32,14.2),iso(9.45,8.32,14.2)],'rgba(255,255,255,.5)');});
+boxItem(10.0,9.9,1.8,.7,16,'#7a5236',()=>{poly([iso(10.1,9.95,16.2),iso(11.7,9.95,16.2),iso(11.7,10.55,16.2),iso(10.1,10.55,16.2)],'#3f8a54');
+  for(let i=0;i<4;i++){const x=10.25+i*.4;poly([iso(x,9.8,17),iso(x+.05,9.8,17),iso(x+.05,10.7,17),iso(x,10.7,17)],'#c8cbd2');}});
 boxItem(13.0,9.0,.8,.8,46,'#3a2a5c',()=>{poly(faceL(13,9,.8,.8,26,40,.1),'#ff6fb5');poly(faceL(13,9,.8,.8,16,20,.15),'#1b1530');});
 function plant(x,y,s=1){add(x+y,()=>{drawBox(x-.18,y-.18,.36,.36,10,'#c9c2b6');const [sx,sy]=iso(x,y,10);
   [[0,-14,9],[-6,-8,7],[6,-9,7],[0,-22,6]].forEach(([dx,dy,r])=>{ctx.fillStyle=dy<-15?'#5fb36b':'#3f8f50';ctx.beginPath();ctx.arc(sx+dx*s,sy+dy*s,r*s,0,7);ctx.fill();});},[x-.2,y-.2,.4,.4]);}
@@ -312,6 +313,7 @@ const R=2,CW=GW*R,CH=GH*R;const blocked=new Uint8Array(CW*CH);
 solids.forEach(([x,y,w,d])=>{for(let i=0;i<CW;i++)for(let j=0;j<CH;j++){const cx=i/R,cy=j/R;
   if(cx<x+w&&cx+1/R>x&&cy<y+d&&cy+1/R>y)blocked[j*CW+i]=1;}});
 TEAM.forEach(a=>{blocked[Math.floor(a.seat[1]*R)*CW+Math.floor(a.seat[0]*R)]=0;});
+SOFA_SEATS.forEach(([x,y])=>{const j=Math.floor(y*R);blocked[j*CW+Math.floor(x*R)]=0;blocked[j*CW+Math.floor((x-.5)*R)]=0;});
 function cellOf(x,y){return [Math.max(0,Math.min(CW-1,Math.floor(x*R))),Math.max(0,Math.min(CH-1,Math.floor(y*R)))];}
 function findPath(x0,y0,x1,y1){
   const [si,sj]=cellOf(x0,y0),[gi,gj]=cellOf(x1,y1);const prev=new Int32Array(CW*CH).fill(-1);
@@ -324,10 +326,12 @@ function findPath(x0,y0,x1,y1){
   out.reverse();out.push([x1,y1]);return out;}
 
 /* ================= agents ================= */
-const SPOTS=[{x:2.25,y:8.75,e:'🏓',nearTV:true},{x:4.25,y:7.25,e:'🏓'},{x:10.5,y:8.75,e:'🛋️'},{x:11.5,y:8.75,e:'📱'},{x:9.75,y:3.4,e:'💬'},
- {x:12.25,y:3.4,e:'💬'},{x:11,y:2.25,e:'☕'},{x:7.95,y:7.75,e:'🥤'},{x:12.6,y:9.4,e:'🎮'},{x:10.25,y:1.25,e:'☕'},{x:13.1,y:5.75,e:'📚'},{x:1.5,y:10.25,e:'⚽'}];
+const SEATS=SOFA_SEATS.map(([x,y],i)=>({x,y,e:['📱','🛋️','💤'][i],tvE:['📺','🍿','😆'][i],tv:1,sit:1}));
+const BEAN={x:1.4,y:10.3,e:'🎧',tvE:'📺',tv:1,sit:1};
+const SPOTS=[SEATS[0],SEATS[2],BEAN,{x:8.75,y:8.25,e:'🏓'},{x:12.25,y:8.25,e:'🏓'},{x:10.9,y:11.25,e:'⚽'},{x:9.75,y:3.4,e:'💬'},
+ {x:12.25,y:3.4,e:'💬'},{x:11,y:2.25,e:'☕'},{x:7.95,y:7.75,e:'🥤'},{x:12.6,y:9.4,e:'🎮'},{x:10.25,y:1.25,e:'☕'},{x:13.1,y:5.75,e:'📚'}];
 let perfT=0;
-const TV_SPOTS=[{x:1.75,y:8.5,e:'📺',tv:1},{x:3.25,y:8.75,e:'🍿',tv:1},{x:4.75,y:8.6,e:'😆',tv:1},{x:2.75,y:10.25,e:'📺',tv:1}];
+const TV_SPOTS=[...SEATS,BEAN];
 TEAM.forEach((a,i)=>{const s=SPOTS[(i*2+1)%SPOTS.length];Object.assign(a,{x:s.x,y:s.y,path:[],status:'idle',task:'',progress:0,
   outputs:[],face:'down',sitting:false,emoji:s.e,spot:s,idleT:rnd(1,6),walking:false,onArrive:null,mode:'idle'});});
 function goTo(a,x,y,cb){a.path=findPath(a.x,a.y,x,y);a.onArrive=cb||null;a.sitting=false;a.emoji=null;}
@@ -346,11 +350,11 @@ function update(a,dt){
     let s;
     if(freeTV.length&&Math.random()<.6)s=freeTV[(Math.random()*freeTV.length)|0];
     else{const opts=SPOTS.filter(x=>!taken.has(x)&&!(tvState.on&&x.nearTV));s=opts[(Math.random()*opts.length)|0];}
-    a.spot=s;goTo(a,s.x,s.y,()=>{a.emoji=s.e;if(s.tv){a.face='up';a.idleT=rnd(12,24);}else a.idleT=rnd(6,14);});}}
-  else if(a.spot&&a.spot.tv&&!tvState.on&&a.mode==='idle'){a.idleT=0;}
+    a.spot=s;goTo(a,s.x,s.y,()=>{const watching=tvState.on&&s.tv;a.emoji=watching?s.tvE:s.e;a.sitting=!!s.sit;
+      a.face=watching?'up':'down';a.idleT=watching?rnd(14,26):rnd(6,14);});}}
 }
 function drawAgent(a){
-  const z=a.sitting?7:0;const [fx,fy]=iso(a.x,a.y);const [sx,sy0]=iso(a.x,a.y,z);
+  const z=a.sitting?(a.spot&&a.spot.sit&&a.mode==='idle'?11:7):0;const [fx,fy]=iso(a.x,a.y);const [sx,sy0]=iso(a.x,a.y,z);
   const bob=a.walking?Math.abs(Math.sin(perfT*11))*2:0;const sy=sy0-bob;
   ctx.fillStyle='rgba(0,0,0,.35)';ctx.beginPath();ctx.ellipse(fx,fy,9,4,0,0,7);ctx.fill();
   if(!a.sitting){const sw=a.walking?Math.sin(perfT*11)*2.5:0;ctx.fillStyle='#2b2d3a';
@@ -366,7 +370,11 @@ function drawAgent(a){
     ctx.fillStyle='rgba(255,120,120,.35)';ctx.fillRect(sx-6,sy-25.5,2.5,1.5);ctx.fillRect(sx+3.5,sy-25.5,2.5,1.5);}
 }
 function drawTag(a){
-  const [sx,sy]=iso(a.x,a.y,a.sitting?7:0);const y=sy-50;
+  const [sx,sy]=iso(a.x,a.y,a.sitting?(a.spot&&a.spot.sit&&a.mode==='idle'?11:7):0);
+  if(a.mode==='idle'&&a.status==='idle'&&a.sitting&&a.spot&&a.spot.tv&&tvState.on&&a.emoji){ // watching TV: just a small bubble, no name tag
+    const by=sy-46+Math.sin(perfT*3+a.x)*1.5;ctx.font='bold 12px "Noto Sans TC",sans-serif';ctx.fillStyle='rgba(30,32,40,.9)';
+    ctx.beginPath();ctx.roundRect(sx-11,by-9,22,18,9);ctx.fill();ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(a.emoji,sx,by+.5);return;}
+  const y=sy-50;
   ctx.font='600 11px "Noto Sans TC",sans-serif';const label=`${a.id} ${a.role}`;const w=ctx.measureText(label).width+20;
   ctx.fillStyle='rgba(14,15,20,.82)';ctx.beginPath();ctx.roundRect(sx-w/2,y-9,w,17,8);ctx.fill();
   ctx.strokeStyle=a.status==='idle'?'rgba(255,255,255,.12)':STATUS[a.status].c;ctx.lineWidth=1;ctx.stroke();
@@ -397,7 +405,7 @@ let last=performance.now();
 function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;perfT+=dt;
   TEAM.forEach(a=>update(a,dt));
   ctx.clearRect(0,0,W,H);drawRoom();
-  const list=items.map(it=>({k:it.key,d:it.draw})).concat(TEAM.map(a=>({k:a.x+a.y+(a.sitting?.02:0),d:()=>drawAgent(a)})));
+  const list=items.map(it=>({k:it.key,d:it.draw})).concat(TEAM.map(a=>({k:(a.sitting&&a.spot&&a.spot.sit&&a.mode==='idle')?a.x+a.y+1.6:a.x+a.y+(a.sitting?.02:0),d:()=>drawAgent(a)})));
   list.sort((p,q)=>p.k-q.k).forEach(o=>o.d());
   // lamp glow
   const [gx,gy]=iso(6.2,8.5,52);const gr=ctx.createRadialGradient(gx,gy,2,gx,gy,90);gr.addColorStop(0,'rgba(255,220,150,.22)');gr.addColorStop(1,'rgba(255,220,150,0)');
