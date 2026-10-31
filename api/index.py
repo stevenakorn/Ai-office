@@ -39,7 +39,7 @@ app.wsgi_app = VercelPath(app.wsgi_app)
 
 PUBLIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "public")
 TIMEOUT = int(os.environ.get("AI_TIMEOUT", "110"))
-MAX_PROMPT = 60_000
+MAX_PROMPT = 150_000
 MAX_TOKENS = int(os.environ.get("AI_MAX_TOKENS", "4000"))
 MODEL_RE = re.compile(r"^[A-Za-z0-9._:/\-]{1,120}$")
 
