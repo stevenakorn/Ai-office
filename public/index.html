@@ -39,24 +39,6 @@ form.cmd{display:flex;align-items:center;gap:8px;background:var(--panel);border:
 .cmd input{flex:1;min-width:0;background:transparent;border:0;outline:0;padding:8px 4px}
 #dispatch{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:8px 16px;font-weight:700;cursor:pointer;white-space:nowrap}
 #dispatch:disabled{opacity:.5;cursor:default}
-.narr{margin-top:8px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 12px}
-.narr summary{cursor:pointer;font-size:13px;font-weight:700}
-.narr summary span{font-weight:400;color:var(--muted);margin-left:8px;font-size:12px}
-.narr textarea{width:100%;margin-top:8px;background:#0f1116;border:1px solid var(--line);border-radius:8px;padding:8px;resize:vertical;line-height:1.6}
-.vorow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px;font-size:13px}
-.vorow select,.vorow input:not([type=checkbox]){background:#0f1116;border:1px solid var(--line);border-radius:8px;padding:4px 8px}
-.vorow #voStyle{flex:1;min-width:180px}
-.attach{cursor:pointer;font-size:18px;padding:4px 8px;border-radius:8px;color:var(--muted);user-select:none}
-.attach:hover{background:#1d2028;color:var(--ink)}
-form.cmd.drag{border-color:var(--work);box-shadow:0 0 0 2px rgba(90,162,255,.25)}
-.files{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0 0;font-size:12px}
-.fchip{display:flex;align-items:center;gap:6px;background:#1a1d25;border:1px solid var(--line);border-radius:8px;padding:3px 4px 3px 8px;max-width:100%}
-.fchip b{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
-.fchip small{color:var(--muted);font-family:var(--mono)}
-.fchip.err{border-color:var(--stuck)}
-.fchip button{background:transparent;border:0;color:var(--muted);cursor:pointer;font-size:14px;padding:0 4px}
-.fchip button:hover{color:var(--ink)}
-.fnote{color:var(--muted);flex-basis:100%}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
 .chips button{background:transparent;border:1px dashed var(--line);border-radius:999px;padding:3px 10px;font-size:12px;color:var(--muted);cursor:pointer}
 .chips button:hover{color:var(--ink);border-color:var(--muted)}
@@ -166,31 +148,8 @@ aside{display:flex;flex-direction:column;gap:12px;position:sticky;top:12px}
       <form class="cmd" id="cmdForm">
         <label for="cmd">給團隊</label>
         <input id="cmd" autocomplete="off" placeholder="一句話派工，例如：幫新開的手搖飲店規劃開幕週 IG 宣傳">
-        <label class="attach" for="fileIn" title="附加檔案：Excel、CSV、Word、PDF、文字檔">📎<span class="vh">附加檔案</span></label>
-        <input type="file" id="fileIn" multiple hidden accept=".csv,.tsv,.txt,.md,.json,.xlsx,.xls,.xlsm,.docx,.pdf">
         <button id="dispatch" type="submit">→ 派工</button>
       </form>
-      <div class="files" id="files" hidden></div>
-      <details class="narr" id="narrBox" hidden>
-        <summary>🎙 解說旁白（選填）<span id="narrInfo"></span></summary>
-        <label for="narr" class="vh">解說旁白</label>
-        <textarea id="narr" rows="5" placeholder="一行一個鏡頭。直線「｜」左邊是旁白（字幕＋配音），右邊是給 Jackson 的導演指示（選填）。例如：&#10;史上最會躺平的皇帝，就是他。｜特寫：角色A躺在龍椅上打呵欠，大黃字標題&#10;只有劉禪，邊吃邊笑，玩得最開心。｜對比構圖：前景角色A大口吃肉狂笑，背景老臣們掩面痛哭"></textarea>
-        <div class="vorow">
-          <label class="chk" for="voOn"><input type="checkbox" id="voOn" checked> AI 配音</label>
-          <label for="voVoice">聲音</label>
-          <select id="voVoice">
-            <option value="Charon">Charon・沉穩知性（男）</option>
-            <option value="Orus">Orus・堅定（男）</option>
-            <option value="Puck">Puck・輕快（男）</option>
-            <option value="Kore">Kore・堅定（女）</option>
-            <option value="Aoede">Aoede・輕鬆（女）</option>
-            <option value="Leda">Leda・年輕（女）</option>
-          </select>
-          <label for="voStyle">語氣</label>
-          <input id="voStyle" value="沉穩、有說服力的台灣華語紀錄片解說">
-        </div>
-        <p class="note" style="margin:4px 0 0">「｜」左邊的旁白會原封不動當作字幕和配音，右邊的導演指示只給 Jackson 看、必須照演；太長的句子會自動拆成兩個鏡頭（每個鏡頭約 8 秒、建議 30 字內）。有配音時，影片本身的音效會自動壓低。</p>
-      </details>
       <div class="chips" id="examples"></div>
       <div class="stats" id="stats"></div>
       <div class="stage" id="stage"><canvas id="office" width="780" height="540" aria-label="等角視角的辦公室，AI 員工在裡面走動與工作"></canvas>
@@ -560,14 +519,14 @@ const PROVIDERS={anthropic:{n:'Claude',c:'#d97757',def:'claude-sonnet-5-5'},open
   gemini:{n:'Gemini',c:'#4f8ff7',def:'gemini-flash-latest'},custom:{n:'自訂',c:'#a98bff',def:''}};
 const DEF={api:'',token:'',agents:{Alfred:{p:'anthropic',m:'claude-opus-5-5'},Curry:{p:'gemini',m:'gemini-flash-latest'},
   Michel:{p:'openai',m:'gpt-5.4-mini'},Mia:{p:'anthropic',m:'claude-sonnet-5-5'},Jackson:{p:'openai',m:'gpt-5.4-mini'},John:{p:'anthropic',m:'claude-sonnet-5-5'}}};
-let cfg=JSON.parse(JSON.stringify(DEF));cfg.video={on:false,model:'gemini-omni-1.1-flash',aspect:'16:9'};
-try{const s=JSON.parse(localStorage.getItem('office-cfg')||'null');if(s){cfg.api=s.api||'';cfg.token=s.token||'';Object.assign(cfg.agents,s.agents||{});Object.assign(cfg.video,s.video||{});if(/veo-3\.1-(fast|lite)?-?generate-preview/.test(cfg.video.model))cfg.video.model='gemini-omni-1.1-flash';}}catch{}
+let cfg=JSON.parse(JSON.stringify(DEF));cfg.video={on:false,model:'veo-3.1-fast-generate-preview',aspect:'16:9'};
+try{const s=JSON.parse(localStorage.getItem('office-cfg')||'null');if(s){cfg.api=s.api||'';cfg.token=s.token||'';Object.assign(cfg.agents,s.agents||{});Object.assign(cfg.video,s.video||{});}}catch{}
 function saveCfg(){try{localStorage.setItem('office-cfg',JSON.stringify(cfg));}catch{}}
 let mode='pending',available={};
 const modeEl=document.getElementById('mode');
 const apiURL=(p,c=cfg)=>{const [path,q]=p.split('?');return (c.api||'').replace(/\/$/,'')+'/api/index?__p='+encodeURIComponent(path.replace(/^\/api\//,''))+(q?'&'+q:'');};
 const hdrs=(c=cfg)=>Object.assign({'Content-Type':'application/json'},c.token?{'X-Office-Token':c.token}:{});
-function setMode(m,msg){mode=m;setTimeout(()=>{try{syncNarrBox();}catch{}},0);modeEl.textContent=m==='live'?'多 AI 連線中':m==='demo'?'示範模式':'連線中…';modeEl.className='mode'+(m==='live'?' live':'');
+function setMode(m,msg){mode=m;modeEl.textContent=m==='live'?'多 AI 連線中':m==='demo'?'示範模式':'連線中…';modeEl.className='mode'+(m==='live'?' live':'');
   document.getElementById('note').textContent=msg||'';}
 async function connect(){
   if(location.protocol==='file:'&&!cfg.api){setMode('demo','你是直接開啟檔案，沒有連到後端，所以先跑示範模式。部署到 Vercel，或在本機執行 python api/index.py 後，就會串接真的 AI。');refreshCards();return;}
@@ -701,7 +660,6 @@ function fillModelSelect(id,p,current){const sel=document.getElementById('sm-'+i
   sel.onchange=()=>{inp.hidden=sel.value!=='__custom';if(!inp.hidden){inp.value='';inp.focus();}};}
 const VPRICE=m=>/lite/.test(m)?0.05:/fast|omni/.test(m)?0.10:0.40;
 function fillVideoModels(){const sel=document.getElementById('vModel');const list=(modelCache.gemini_video||[]).slice();
-  if(!list.includes('gemini-omni-1.1-flash'))list.unshift('gemini-omni-1.1-flash');
   if(cfg.video.model&&!list.includes(cfg.video.model))list.unshift(cfg.video.model);
   sel.innerHTML=list.map(m=>`<option value="${esc(m)}" ${m===cfg.video.model?'selected':''}>${esc(m)}　·　約 $${VPRICE(m).toFixed(2)}/秒</option>`).join('');}
 function openSettings(){document.getElementById('sApi').value=cfg.api;document.getElementById('sTok').value=cfg.token;
@@ -738,7 +696,7 @@ document.getElementById('sSave').onclick=()=>{cfg.api=document.getElementById('s
     if(!m){document.getElementById('sMsg').textContent=`${a.id} 還沒選模型。`;return;}
     cfg.agents[a.id]={p:document.getElementById('sp-'+a.id).value,m};}
   cfg.video={on:document.getElementById('vOn').checked,model:document.getElementById('vModel').value||cfg.video.model,aspect:document.getElementById('vAspect').value};
-  saveCfg();setEl.hidden=true;setMode('pending');connect();syncNarrBox();};
+  saveCfg();setEl.hidden=true;setMode('pending');connect();};
 setEl.addEventListener('click',e=>{if(e.target===setEl)setEl.hidden=true;});
 function parseJSON(t){const m=String(t).match(/\{[\s\S]*\}/);return JSON.parse(m?m[0]:t);}
 function fakeRun(onProg,ms=rnd(3500,6500)){return new Promise(res=>{const t0=performance.now();const iv=setInterval(()=>{const p=(performance.now()-t0)/ms;onProg&&onProg(Math.min(.95,p));if(p>=1){clearInterval(iv);res();}},120);});}
@@ -750,92 +708,38 @@ function targetSeconds(cmd){let m=cmd.match(/(\d+)\s*分(?:鐘)?\s*(\d+)?\s*秒?
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function api(path,opt={}){const r=await fetch(apiURL(path),Object.assign({headers:hdrs()},opt));
   const j=await r.json().catch(()=>({error:'後端回應格式錯誤（HTTP '+r.status+'）'}));if(!r.ok||j.error)throw new Error(j.error||('HTTP '+r.status));return j;}
-async function fetchClip(uri){let start=0,total=Infinity,tries=0;const parts=[];
+async function fetchClip(uri){let start=0,total=Infinity;const parts=[];
   while(start<total){const r=await fetch(apiURL('/api/video/file?uri='+encodeURIComponent(uri)+'&start='+start),{headers:hdrs()});
-    if(r.status===409&&tries++<36){await sleep(5000);continue;}
     if(!r.ok){const j=await r.json().catch(()=>({}));throw new Error(j.error||('下載失敗 HTTP '+r.status));}
     total=+r.headers.get('X-Total-Size')||0;const b=await r.arrayBuffer();if(!b.byteLength)break;parts.push(b);start+=b.byteLength;}
   return URL.createObjectURL(new Blob(parts,{type:'video/mp4'}));}
-let curNarr=[];
-const voCfg=()=>({on:document.getElementById('voOn').checked,voice:document.getElementById('voVoice').value,style:document.getElementById('voStyle').value.trim()});
-function narrSegments(){const raw=document.getElementById('narr').value.split('\n').map(x=>x.trim()).filter(Boolean);const out=[];
-  for(const row of raw){const k=row.search(/[｜|]/);const line=(k<0?row:row.slice(0,k)).trim(),note=(k<0?'':row.slice(k+1)).trim();
-    if(!line)continue;const chunks=[];
-    if(line.length<=32)chunks.push(line);
-    else{let buf='';for(const piece of line.split(/(?<=[，。！？；、,.!?;])/)){if((buf+piece).length>32&&buf){chunks.push(buf);buf='';}buf+=piece;
-      while(buf.length>32){chunks.push(buf.slice(0,32));buf=buf.slice(32);}}if(buf)chunks.push(buf);}
-    chunks.forEach((t,i)=>out.push({text:t,note:note?(i?'（延續上一鏡）'+note:note):''}));}
-  return out;}
-function narrInfo(){const n=narrSegments().length;document.getElementById('narrInfo').textContent=n?`${n} 個鏡頭・約 ${n*8} 秒・預估 US$${(n*8*VPRICE(cfg.video.model)).toFixed(2)}${n>15?'（超過 15 個鏡頭，只會做前 15 個）':''}`:'';
-  try{localStorage.setItem('office-narr',document.getElementById('narr').value);localStorage.setItem('office-vo',JSON.stringify(voCfg()));}catch{}}
-{const t=document.getElementById('narr');try{t.value=localStorage.getItem('office-narr')||'';const v=JSON.parse(localStorage.getItem('office-vo')||'null');
-  if(v){document.getElementById('voOn').checked=v.on;document.getElementById('voVoice').value=v.voice||'Charon';if(v.style)document.getElementById('voStyle').value=v.style;}}catch{}
-  ['input','change'].forEach(ev=>document.getElementById('narrBox').addEventListener(ev,narrInfo));}
-function syncNarrBox(){const box=document.getElementById('narrBox');box.hidden=!videoOn();if(!box.hidden)narrInfo();}
-// Tier 1 只允許每分鐘 4 次影片請求：排隊、間隔 16 秒，被限流就照指示等待後重送
-let lastStart=0,startChain=Promise.resolve();
-function startSlot(){const p=startChain.then(async()=>{const wait=lastStart+16000-Date.now();if(wait>0)await sleep(wait);lastStart=Date.now();});startChain=p.catch(()=>{});return p;}
-async function startVideo(body,onWait){
-  for(let k=0;;k++){await startSlot();
-    try{return await api('/api/video/start',{method:'POST',body:JSON.stringify(body)});}
-    catch(e){const m=e.message||'';if(!/429|rate.?limit|quota|RESOURCE_EXHAUSTED/i.test(m)||k>=5)throw e;
-      const secs=+((/retry in (\d+)/i.exec(m)||[])[1]||30)+3;onWait&&onWait(secs);lastStart=Date.now()+secs*1000-16000;}}}
-async function genClip(prompt,onState,onWait){
-  const first=/veo/.test(cfg.video.model)?prompt:'An 8-second video. '+prompt;
-  const r0=await startVideo({model:cfg.video.model,prompt:first,aspect:cfg.video.aspect},onWait);
-  if(r0.uri)return await fetchClip(r0.uri);
-  const op=r0.op;
+async function genClip(prompt,onState){const {op}=await api('/api/video/start',{method:'POST',body:JSON.stringify({model:cfg.video.model,prompt,aspect:cfg.video.aspect})});
   const t0=Date.now();
   while(Date.now()-t0<9*60*1000){await sleep(9000);const st=await api('/api/video/status?op='+encodeURIComponent(op));onState&&onState((Date.now()-t0)/60000);
     if(st.done){if(st.error)throw new Error(st.error);return await fetchClip(st.uri);}}
   throw new Error('等太久了，這個鏡頭放棄');}
-async function genVoice(text,vo){return await api('/api/tts',{method:'POST',body:JSON.stringify({text,voice:vo.voice,style:vo.style})});}
-function voiceToBuffer(ac,v){const bin=atob(v.data);const bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
-  if(/wav|mpeg|mp3|ogg|webm/i.test(v.mime))return ac.decodeAudioData(bytes.buffer);
-  const rate=+(/rate=(\d+)/.exec(v.mime)||[0,24000])[1];const n=bytes.length>>1;const buf=ac.createBuffer(1,n,rate);const ch=buf.getChannelData(0);const dv=new DataView(bytes.buffer);
-  for(let i=0;i<n;i++)ch[i]=dv.getInt16(i*2,true)/32768;return Promise.resolve(buf);}
 const once=(el,ev)=>new Promise(r=>el.addEventListener(ev,r,{once:true}));
 function srtTime(t){const ms=Math.round(t*1000),h=ms/3600000|0,m=ms/60000%60|0,s=ms/1000%60|0,x=ms%1000;return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')},${String(x).padStart(3,'0')}`;}
 async function mergeClips(clips,onProg){
   const mk=()=>{const v=document.createElement('video');v.playsInline=true;v.preload='auto';return v;};
-  const firstUrl=clips.find(c=>c.url)?.url;if(!firstUrl)throw new Error('沒有任何可用的鏡頭');
-  const A=mk(),B=mk();A.src=firstUrl;await once(A,'loadedmetadata');
+  const A=mk(),B=mk();A.src=clips[0].url;await once(A,'loadedmetadata');
   const Wd=A.videoWidth||1280,Hd=A.videoHeight||720;const c=document.createElement('canvas');c.width=Wd;c.height=Hd;const g=c.getContext('2d');
   const ac=new AudioContext();await ac.resume();const dest=ac.createMediaStreamDestination();
-  const hasVO=clips.some(x=>x.vo);const duck=ac.createGain();duck.gain.value=hasVO?0.25:1;duck.connect(dest);
-  [A,B].forEach(v=>ac.createMediaElementSource(v).connect(duck));
-  const vbufs=await Promise.all(clips.map(x=>x.vo?voiceToBuffer(ac,x.vo).catch(()=>null):null));
+  [A,B].forEach(v=>ac.createMediaElementSource(v).connect(dest));
   const stream=new MediaStream([...c.captureStream(30).getVideoTracks(),...dest.stream.getAudioTracks()]);
   const mime=['video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/mp4','video/webm;codecs=vp9,opus','video/webm'].find(t=>window.MediaRecorder&&MediaRecorder.isTypeSupported(t));
   if(!mime)throw new Error('這個瀏覽器不支援錄影合併，請用電腦版 Chrome 或 Edge');
   const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:6e6});const chunks=[];rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
-  let cur=A,nxt=B,sub='',hook=false,segT0=performance.now(),segN=0;const vertical=Hd>Wd;const base=Math.round(Math.min(Wd,Hd)*.058);
-  const last=document.createElement('canvas');last.width=Wd;last.height=Hd;const lg=last.getContext('2d');let haveLast=false;
-  function wrap(text,maxW){const lines=[];let line='';for(const ch of text){if(g.measureText(line+ch).width>maxW&&line){lines.push(line);line='';}line+=ch;}if(line)lines.push(line);
-    // avoid a lonely punctuation mark starting a line
-    for(let i=1;i<lines.length;i++)if(/^[，。！？、；：」』）,.!?]/.test(lines[i])){lines[i-1]+=lines[i][0];lines[i]=lines[i].slice(1);}return lines.filter(Boolean);}
-  function caption(text,big){const fs=Math.round(base*(big?1.35:1));g.font=`900 ${fs}px "Noto Sans TC",sans-serif`;g.textAlign='center';g.textBaseline='middle';
-    const lines=wrap(text,Wd*.86).slice(0,4);const lh=fs*1.28;const y0=big?(vertical?Hd*.16:Hd*.18):(vertical?Hd*.70:Hd-fs*.9-(lines.length-1)*lh)-((big?0:lines.length-1)*lh)/2;
-    lines.forEach((l,i)=>{const y=y0+i*lh;g.lineJoin='round';g.lineWidth=fs*.22;g.strokeStyle='rgba(0,0,0,.9)';g.strokeText(l,Wd/2,y);g.fillStyle=big?'#ffd23f':'#fff';g.fillText(l,Wd/2,y);});}
-  const iv=setInterval(()=>{const t=Math.min(1,(performance.now()-segT0)/7000);const z=1+.07*t;const dx=(segN%2?1:-1)*Wd*.02*t;
-    g.fillStyle='#000';g.fillRect(0,0,Wd,Hd);
-    const src=cur.readyState>=2&&!cur.dataset.blank?cur:(haveLast?last:null);
-    if(src){g.save();g.translate(Wd/2+dx,Hd/2);g.scale(z,z);g.drawImage(src,-Wd/2,-Hd/2,Wd,Hd);g.restore();if(src===cur){lg.drawImage(cur,0,0,Wd,Hd);haveLast=true;}}
-    if(sub)caption(sub,hook);},33);
+  let cur=A,nxt=B,sub='';const fs=Math.round(Hd*.05);
+  const iv=setInterval(()=>{g.fillStyle='#000';g.fillRect(0,0,Wd,Hd);if(cur.readyState>=2)g.drawImage(cur,0,0,Wd,Hd);
+    if(sub){g.font=`700 ${fs}px "Noto Sans TC",sans-serif`;g.textAlign='center';g.textBaseline='bottom';g.lineWidth=fs*.18;g.strokeStyle='rgba(0,0,0,.85)';
+      g.strokeText(sub,Wd/2,Hd-fs*.9);g.fillStyle='#fff';g.fillText(sub,Wd/2,Hd-fs*.9);}},33);
   const srt=[];let tAcc=0;rec.start(1000);
-  for(let i=0;i<clips.length;i++){const cl=clips[i];
-    const nextUrl=clips.slice(i+1).find(x=>x.url)?.url;
-    sub=cl.sub||'';hook=i===0&&!!cl.hook;const t0=ac.currentTime;const waits=[];segT0=performance.now();segN=i;
-    if(cl.url){delete cur.dataset.blank;if(cur.src!==cl.url){cur.src=cl.url;await once(cur,'loadeddata');}
-      if(nextUrl&&nxt.src!==nextUrl){nxt.src=nextUrl;nxt.load();}
-      cur.currentTime=0;await cur.play();
-      if(!vbufs[i])waits.push(once(cur,'ended'));}
-    else{cur.dataset.blank='1';if(!vbufs[i])waits.push(sleep(2500));}
-    if(vbufs[i]){const src=ac.createBufferSource();src.buffer=vbufs[i];src.connect(dest);src.start(ac.currentTime+0.2);
-      waits.push(sleep(Math.max(2.4,vbufs[i].duration+0.55)*1000));}  // 旁白講完就切，不硬等 8 秒
-    await Promise.all(waits);if(!cur.paused)cur.pause();
-    const d=ac.currentTime-t0;if(sub)srt.push(`${srt.length+1}\n${srtTime(tAcc)} --> ${srtTime(tAcc+d)}\n${sub}\n`);tAcc+=d;
-    onProg&&onProg((i+1)/clips.length);if(cl.url&&nextUrl&&nxt.src===nextUrl)[cur,nxt]=[nxt,cur];}
+  for(let i=0;i<clips.length;i++){
+    if(i+1<clips.length){nxt.src=clips[i+1].url;nxt.load();}
+    sub=clips[i].sub||'';await cur.play();await once(cur,'ended');
+    const d=cur.duration||8;if(sub)srt.push(`${srt.length+1}\n${srtTime(tAcc)} --> ${srtTime(tAcc+d)}\n${sub}\n`);tAcc+=d;
+    onProg&&onProg((i+1)/clips.length);[cur,nxt]=[nxt,cur];}
   clearInterval(iv);rec.stop();await once(rec,'stop');ac.close();
   const type=mime.split(';')[0];
   return {url:URL.createObjectURL(new Blob(chunks,{type})),mime:type,seconds:tAcc,
@@ -844,126 +748,54 @@ const shotsPrompt=(cmd,board,n)=>`你是剪輯師 Jackson。老闆的任務：�
 以下是你寫好的分鏡：
 ${board.slice(0,5000)}
 
-請把它轉成要交給 Google 影片模型的鏡頭清單，剛好 ${n} 個鏡頭，每個鏡頭 8 秒，依播放順序排列。
+請把它轉成要交給 Google Veo 影片模型的鏡頭清單，剛好 ${n} 個鏡頭，每個鏡頭 8 秒，依播放順序排列。
 規則：
 - prompt 用英文，寫清楚畫面、動作、鏡頭運動、光線與畫風；每個 prompt 都要完整重複主要角色的外觀（年齡、髮型、服裝），讓不同鏡頭的角色長得一致；所有鏡頭用同一種畫風。
 - 有台詞時，在 prompt 裡寫出誰說了什麼，台詞保留繁體中文原文並加上引號。
 - 不要真實名人、品牌商標或有版權的角色。
-- prompt 裡絕對不要出現任何真實人物的名字，包括歷史人物（例如劉備、曹操、孫權、諸葛亮），也不要寫 Liu Bei、Cao Cao 這類拼音；一律改用外觀描述，例如 the gentle lord in green robes with long earlobes。影片模型看到真實人名會拒絕生成。
 - subtitle 是這個鏡頭的繁體中文字幕（台詞或旁白，20 字內，可以是空字串）。
 只輸出 JSON：{"shots":[{"prompt":"...","subtitle":"..."}]}`;
-const narrShotsPrompt=(cmd,board,segs)=>`你是剪輯師 Jackson。老闆的任務：「${cmd}」
-老闆寫好了旁白，每一段旁白對應一個 8 秒的鏡頭（依順序）。有「導演指示」的鏡頭，是老闆親自指定的演法，優先順序最高，畫面必須完全照指示演出，不可以省略或改掉其中的動作、構圖和情緒：
-${segs.map((x,i)=>`${i+1}. 旁白：${x.text}${x.note?`\n   導演指示：${x.note}`:''}`).join('\n')}
-${board?`\n你之前寫的分鏡筆記（參考用）：\n${board.slice(0,3000)}\n`:''}
-請替每一段旁白寫一個要交給 Google 影片模型的英文畫面描述，剛好 ${segs.length} 個，順序一致。
-規則：
-- 畫面要具體「演出」該段旁白在講的事，不要只是人物站著對看：每個鏡頭都要有一個明確的動作或事件（遞出地圖、拍桌、搖頭拒絕、城門關上、士兵湧入城池…）和清楚的情緒變化。
-- 鏡頭語言要有變化：輪流用特寫、過肩、俯視、快速推近、橫移等，避免連續兩個鏡頭構圖相同；開頭第一個鏡頭要最有衝擊力。
-- 如果是漫畫或動畫風格，可以加入誇張表情、速度線、汗滴、背景閃光等漫畫效果增加趣味。
-- 寫清楚場景、光線與鏡頭運動。
-- 每個 prompt 都要完整重複主要角色的外觀（年齡、髮型、服裝、盔甲），所有鏡頭同一種畫風（例如 cinematic Chinese historical epic, Three Kingdoms era）。
-- 畫面裡不要出現任何文字或字幕；人物不要開口說話，No spoken dialogue, no narration voice, only ambient sound effects.
-- 不要真實現代名人、品牌商標或有版權的角色。
-- prompt 裡絕對不要出現任何真實人物的名字，包括歷史人物（例如劉備、曹操、孫權、諸葛亮），也不要寫 Liu Bei、Cao Cao 這類拼音；一律改用外觀描述，例如 the gentle lord in green robes with long earlobes。影片模型看到真實人名會拒絕生成。
-只輸出 JSON：{"shots":[{"prompt":"..."}]}`;
 async function makeVideo(a,cmd,st,boardSlot){
-  const vo=voCfg();const segs=curNarr.slice(0,15);
-  let shots;
-  if(segs.length){
-    setStatus(a,'work','依旁白規劃畫面');a.progress=.05;
-    const raw=await ai(a,narrShotsPrompt(cmd,boardSlot.text,segs),p=>a.progress=.05+p*.05);
-    const ps=(parseJSON(raw).shots||[]);shots=segs.map((x,i)=>({prompt:(ps[i]&&ps[i].prompt)||ps[ps.length-1]?.prompt||x.text,subtitle:x.text,note:x.note,narr:true}));
-  }else{
-    const secs=Math.max(8,Math.min(120,targetSeconds(cmd)));const n=Math.min(15,Math.ceil(secs/8));
-    setStatus(a,'work','把分鏡轉成鏡頭清單');a.progress=.05;
-    const raw=await ai(a,shotsPrompt(cmd,boardSlot.text,n),p=>a.progress=.05+p*.05);
-    shots=(parseJSON(raw).shots||[]).filter(x=>x&&x.prompt).slice(0,15);}
-  if(!shots.length)throw new Error('沒有產出鏡頭清單');
-  const useVO=segs.length&&vo.on;
+  const secs=Math.max(8,Math.min(120,targetSeconds(cmd)));const n=Math.min(15,Math.ceil(secs/8));
+  setStatus(a,'work','把分鏡轉成鏡頭清單');a.progress=.05;
+  const raw=await ai(a,shotsPrompt(cmd,boardSlot.text,n),p=>a.progress=.05+p*.05);
+  let shots=(parseJSON(raw).shots||[]).filter(x=>x&&x.prompt).slice(0,15);if(!shots.length)throw new Error('沒有產出鏡頭清單');
   const cost=shots.length*8*VPRICE(cfg.video.model);
-  const ok=await askUser(a,`我要用 ${cfg.video.model} 生成 ${shots.length} 個鏡頭，共約 ${shots.length*8} 秒（${cfg.video.aspect}），預估約 US$${cost.toFixed(2)}${useVO?`，另外用「${vo.voice}」做 ${shots.length} 段 AI 配音（費用很低）`:''}。失敗重做的鏡頭會另外計費。要開始嗎？`,{confirm:true,yes:'開始生成',no:'先不要，只交分鏡'});
+  const ok=await askUser(a,`我要用 ${cfg.video.model} 生成 ${shots.length} 個鏡頭，共約 ${shots.length*8} 秒（${cfg.video.aspect}），預估約 US$${cost.toFixed(2)}。失敗重做的鏡頭會另外計費。要開始嗎？`,{confirm:true,yes:'開始生成',no:'先不要，只交分鏡'});
   if(!ok){setStatus(a,'work',st.title);log(a.id,'老闆決定先不生成影片，只交分鏡');return;}
-  log(a.id,`開始生成 ${shots.length} 個鏡頭${useVO?'和配音':''}。Google 限制每分鐘最多 4 次，鏡頭會排隊送出，全部大約需要 ${Math.ceil(shots.length*16/60)+2} 分鐘以上`);
-  const urls=new Array(shots.length).fill(null),voices=new Array(shots.length).fill(null);let done=0,failed=0,next=0;
+  log(a.id,`開始生成 ${shots.length} 個鏡頭，每個大約 1 到 4 分鐘`);
+  const urls=new Array(shots.length).fill(null);let done=0,failed=0,next=0;
   const upd=()=>{setStatus(a,'work',`生成影片 ${done}/${shots.length}${failed?`（失敗 ${failed}）`:''}`);a.progress=.1+(done/shots.length)*.75;};upd();
-  const voJob=useVO?(async()=>{for(let i=0;i<shots.length;i++){try{voices[i]=await genVoice(shots[i].subtitle,vo);}catch(e){log(a.id,`第 ${i+1} 段配音失敗：${e.message||e}`);}}
-    const okN=voices.filter(Boolean).length;log(a.id,`配音完成 ${okN}/${shots.length} 段`);})():Promise.resolve();
   const worker=async()=>{while(next<shots.length){const i=next++;
-    try{const onWait=s=>log(a.id,`鏡頭 ${i+1} 碰到 Google 每分鐘次數上限，等 ${s} 秒後自動重送`);
-      try{urls[i]=await genClip(shots[i].prompt,null,onWait);}
-      catch(e){if(!/real people|likeness|person|celebrit|人物|名人/i.test(e.message||''))throw e;
-        log(a.id,`鏡頭 ${i+1} 被擋（疑似提到真實人物），改寫成外觀描述後重試`);
-        const fixed=await ai(a,`下面是一段要交給 Google 影片模型的英文畫面描述，因為提到真實人物（包含歷史人物）的名字而被拒絕。請改寫：拿掉所有人名、稱號和拼音，改用外觀、服裝、年齡來描述人物，其他畫面內容、畫風和鏡頭運動維持不變。只輸出改寫後的英文描述本身。\n\n${shots[i].prompt}`);
-        shots[i].prompt=(fixed||'').trim()||shots[i].prompt;urls[i]=await genClip(shots[i].prompt,null,onWait);}
-      done++;log(a.id,`鏡頭 ${i+1} 完成`);}
+    try{urls[i]=await genClip(shots[i].prompt);done++;log(a.id,`鏡頭 ${i+1} 完成`);}
     catch(e){failed++;log(a.id,`鏡頭 ${i+1} 失敗：${e.message||e}`);}upd();}};
-  await Promise.all([worker(),worker(),voJob]);
-  const clips=shots.map((x,i)=>({url:urls[i],sub:x.subtitle,vo:voices[i],hook:i===0&&!!x.narr})).filter(x=>x.url||(x.vo&&x.sub));
-  if(!clips.some(x=>x.url))throw new Error('所有鏡頭都失敗了');
+  await Promise.all([worker(),worker(),worker()]);
+  const clips=shots.map((x,i)=>({url:urls[i],sub:x.subtitle})).filter(x=>x.url);
+  if(!clips.length)throw new Error('所有鏡頭都失敗了');
   setStatus(a,'work','合併成一支影片（請讓這個分頁保持開著）');log(a.id,'所有鏡頭到齊，開始合併，大約需要跟影片一樣長的時間');
   const out=await mergeClips(clips,p=>a.progress=.85+p*.15);
   deliverables.push({idx:-2,who:'Jackson',title:'成片',video:out.url,mime:out.mime,srt:out.srt,
-    text:`**長度**：約 ${Math.round(out.seconds)} 秒，${shots.length} 個鏡頭${failed?`（${failed} 個鏡頭失敗${segs.length?'，該段以上一個畫面＋旁白補上':'，已略過'}）`:''}${useVO?`\n\n**配音**：${vo.voice}・${vo.style}`:''}\n\n**鏡頭清單**\n`+shots.map((x,i)=>`${i+1}. ${urls[i]?'':'（畫面失敗）'}${x.subtitle||'（無字幕）'}${x.note?`\n   - 導演指示：${x.note}`:''}\n   - 送給影片模型的畫面描述：\`${(x.prompt||'').replace(/`/g,"'")}\``).join('\n')});
+    text:`**長度**：約 ${Math.round(out.seconds)} 秒，${clips.length} 個鏡頭${failed?`（${failed} 個失敗已略過）`:''}\n\n**鏡頭清單**\n`+shots.map((x,i)=>`${i+1}. ${urls[i]?'':'（失敗）'}${x.subtitle||'（無字幕）'}`).join('\n')});
   viewing='d'+(deliverables.length-1);renderOut();log(a.id,'影片完成，可以在交付成果預覽、下載，或丟到電視播');}
-
-/* ================= attachments (read in the browser) ================= */
-let attachments=[],curFiles=[];
-const PER_FILE=40000,TOTAL=60000;
-const LIBS={xlsx:'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
-  pdf:'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js',pdfw:'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js',
-  docx:'https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js'};
-const loaded={};
-function loadScript(src){return loaded[src]||(loaded[src]=new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>{delete loaded[src];rej(new Error('讀取工具載入失敗，請檢查網路後再試'));};document.head.appendChild(s);}));}
-async function fileToText(f){const ext=(f.name.split('.').pop()||'').toLowerCase();
-  if(['csv','tsv','txt','md','json'].includes(ext))return await f.text();
-  if(['xlsx','xls','xlsm'].includes(ext)){await loadScript(LIBS.xlsx);const wb=XLSX.read(await f.arrayBuffer(),{type:'array',cellDates:true});
-    return wb.SheetNames.map(n=>`### 工作表：${n}\n`+XLSX.utils.sheet_to_csv(wb.Sheets[n],{blankrows:false}).replace(/,+$/gm,'')).join('\n\n');}
-  if(ext==='docx'){await loadScript(LIBS.docx);return (await mammoth.extractRawText({arrayBuffer:await f.arrayBuffer()})).value;}
-  if(ext==='pdf'){await loadScript(LIBS.pdf);pdfjsLib.GlobalWorkerOptions.workerSrc=LIBS.pdfw;
-    const doc=await pdfjsLib.getDocument({data:await f.arrayBuffer()}).promise;const out=[];
-    for(let i=1;i<=doc.numPages;i++){const c=await (await doc.getPage(i)).getTextContent();out.push(`--- 第 ${i} 頁 ---\n`+c.items.map(x=>x.str+(x.hasEOL?'\n':'')).join(''));}
-    const t=out.join('\n');if(!t.replace(/---.*---|\s/g,'').length)throw new Error('這個 PDF 看起來是掃描圖片，讀不到文字');return t;}
-  throw new Error('不支援這種檔案格式');}
-const fmtN=n=>n.toLocaleString('en-US');
-function renderFiles(){const el=document.getElementById('files');el.hidden=!attachments.length;if(!attachments.length){el.innerHTML='';return;}
-  const total=attachments.reduce((t,f)=>t+(f.text?f.text.length:0),0);
-  el.innerHTML=attachments.map((f,i)=>`<span class="fchip ${f.error?'err':''}" title="${esc(f.error||'')}">📄 <b>${esc(f.name)}</b><small>${f.loading?'讀取中…':f.error?'無法讀取':fmtN(f.text.length)+' 字'+(f.truncated?'（已截斷）':'')}</small><button type="button" data-i="${i}" aria-label="移除 ${esc(f.name)}">×</button></span>`).join('')
-    +`<span class="fnote">共約 ${fmtN(total)} 字。檔案在你的瀏覽器裡讀取，內容會交給 AI 員工處理，請不要上傳客戶個資或公司機密。${attachments.some(f=>f.error)?' 紅框的檔案讀不到，不會送出。':''}</span>`;
-  el.querySelectorAll('button[data-i]').forEach(b=>b.onclick=()=>{attachments.splice(+b.dataset.i,1);renderFiles();});}
-async function addFiles(list){for(const f of list){const item={name:f.name,text:'',loading:true};attachments.push(item);renderFiles();
-  try{if(f.size>25*1024*1024)throw new Error('檔案超過 25MB');let t=(await fileToText(f)).replace(/\r/g,'').replace(/\n{3,}/g,'\n\n').trim();
-    const used=attachments.filter(x=>x!==item).reduce((a,x)=>a+x.text.length,0);const cap=Math.max(0,Math.min(PER_FILE,TOTAL-used));
-    if(t.length>cap){t=t.slice(0,cap);item.truncated=true;}if(!t)throw new Error(cap?'檔案裡沒有讀到文字':'附件總字數已達上限');item.text=t;}
-  catch(e){item.error=e.message||String(e);}
-  item.loading=false;renderFiles();}}
-document.getElementById('fileIn').addEventListener('change',e=>{addFiles([...e.target.files]);e.target.value='';});
-{const form=document.getElementById('cmdForm');
-  form.addEventListener('dragover',e=>{e.preventDefault();form.classList.add('drag');});
-  form.addEventListener('dragleave',()=>form.classList.remove('drag'));
-  form.addEventListener('drop',e=>{e.preventDefault();form.classList.remove('drag');if(e.dataTransfer.files.length)addFiles([...e.dataTransfer.files]);});}
-function filesPreview(){if(!curFiles.length)return '';
-  return `\n老闆附上的檔案（以下只是開頭預覽，完整內容會交給 use_files 為 true 的成員）：\n`+curFiles.map(f=>`### ${f.name}（約 ${f.text.length} 字${f.truncated?'，已截斷':''}）\n${f.text.slice(0,1500)}`).join('\n\n')+'\n';}
-function filesFull(){return `\n老闆附上的檔案內容：\n`+curFiles.map(f=>`<<<檔案：${f.name}${f.truncated?'（內容過長，只附前段）':''}>>>\n${f.text}\n<<<檔案結束>>>`).join('\n\n')+'\n';}
 
 /* ================= prompts ================= */
 const roster=()=>TEAM.filter(a=>a.id!=='Alfred').map(a=>`- ${a.id}（${a.role}）：${a.id==='Jackson'&&videoOn()?'短影音分鏡，並用 Veo 生成每個鏡頭、自動合併成一支完整影片（需要影片時一定要指派給 Jackson）':a.desc}`).join('\n');
 const planPrompt=(cmd,notes)=>`你是 Alfred，一個 AI 團隊的主管。團隊成員：
 ${roster()}
-（John 會在最後統一審查，不需要指派給 John。）${curNarr.length?'\n老闆已經寫好影片的旁白腳本，一定要指派一個子任務給 Jackson 製作影片；旁白內容不需要其他人改寫。':''}
+（John 會在最後統一審查，不需要指派給 John。）
 
 老闆交代的任務：「${cmd}」
-${notes?`老闆的補充說明：${notes}\n`:''}${filesPreview()}
+${notes?`老闆的補充說明：${notes}\n`:''}
 請拆解任務，只指派真正需要的成員，總共 1 到 4 個子任務。用 depends_on 標示要等哪個子任務完成（填子任務序號，從 0 開始）。
 只有缺少「沒有就完全無法開始」的關鍵資訊時，才把 needs_user 設成一個要問老闆的簡短問題；其他情況設為 null，自行做合理假設。
 只輸出 JSON，不要任何其他文字：
-{"summary":"一句話說明分工","needs_user":null,"subtasks":[{"agent":"Curry","title":"10 字內標題","instructions":"具體指示","depends_on":[]${curFiles.length?',"use_files":true':''}}]}${curFiles.length?'\n老闆有附檔案：需要讀附件完整內容的子任務，use_files 設為 true，用不到的設為 false（附件很長，不要每個人都讀）。':''}`;
+{"summary":"一句話說明分工","needs_user":null,"subtasks":[{"agent":"Curry","title":"10 字內標題","instructions":"具體指示","depends_on":[]}]}`;
 const workPrompt=(a,cmd,st,ctxs,notes)=>`你是 ${a.id}，AI 團隊中的${a.role}。專長：${a.desc}。
 老闆交代的整體任務：「${cmd}」
 主管 Alfred 指派給你的子任務：${st.title}
 指示：${st.instructions}
-${notes?`老闆補充：${notes}\n`:''}${st.use_files!==false&&curFiles.length?filesFull():''}${a.id==='Jackson'&&curNarr.length?`\n老闆寫好的旁白（每行一個鏡頭，旁白和字幕會照原文，你只要規劃畫面；有「導演指示」的鏡頭必須照指示演出）：\n${curNarr.map((x,i)=>`${i+1}. ${x.text}${x.note?`　［導演指示：${x.note}］`:''}`).join('\n')}\n`:''}${ctxs.length?`\n同事已完成的產出（請以此為基礎）：\n${ctxs.map(c=>`### ${c.who}・${c.title}\n${c.text.slice(0,2500)}`).join('\n\n')}\n`:''}
-請直接交出成果：繁體中文（台灣用語），Markdown 格式，具體可用，約 300 到 600 字${curFiles.length?'；引用附件的數字時要寫清楚出處（檔名、工作表或欄位），不要編造附件裡沒有的數字':''}。你沒有上網能力，研究類內容依你的知識整理，並標出需要再查證的數字。
+${notes?`老闆補充：${notes}\n`:''}${ctxs.length?`\n同事已完成的產出（請以此為基礎）：\n${ctxs.map(c=>`### ${c.who}・${c.title}\n${c.text.slice(0,2500)}`).join('\n\n')}\n`:''}
+請直接交出成果：繁體中文（台灣用語），Markdown 格式，具體可用，約 300 到 600 字。你沒有上網能力，研究類內容依你的知識整理，並標出需要再查證的數字。
 如果缺少關鍵資訊導致完全無法完成，只輸出一行「NEED_USER: 你要問老闆的問題」。`;
 const reviewPrompt=(cmd,ds)=>`你是 John，AI 團隊的審查。老闆的任務：「${cmd}」
 以下是團隊產出：
@@ -998,7 +830,7 @@ let running=false;
 async function mission(cmd){
   running=true;document.getElementById('dispatch').disabled=true;deliverables=[];finalText='';viewing='final';renderOut();
   TEAM.forEach(a=>{a.progress=0;a.task='';a.arrive=null;if(a.status!=='idle')setStatus(a,'idle');});
-  const A=byId.Alfred;curFiles=attachments.filter(f=>f.text);curNarr=videoOn()?narrSegments():[];log(null,`派工給 Alfred：${cmd}${curFiles.length?`（附 ${curFiles.length} 個檔案）`:''}`);wire();
+  const A=byId.Alfred;log(null,`派工給 Alfred：${cmd}`);wire();
   setStatus(A,'plan','拆解任務');toDesk(A);
   let plan,notes='';
   try{
