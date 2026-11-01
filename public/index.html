@@ -70,13 +70,17 @@ form.cmd.drag{border-color:var(--work);box-shadow:0 0 0 2px rgba(90,162,255,.25)
 @media (max-width:560px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .vt{position:absolute;right:10px;top:10px;z-index:3;background:rgba(14,15,20,.75);border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:11px;color:var(--muted);cursor:pointer}
 .vt:hover{color:var(--ink)}
-#office3d{display:block;width:100%;height:auto}
+#office3d{display:block;width:100%!important;height:auto!important;aspect-ratio:780/540}
+.layout>main,.layout>aside{min-width:0}
 #tags{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:2}
 .tag3{position:absolute;left:0;top:0;display:flex;flex-direction:column;align-items:center;gap:3px;white-space:nowrap;will-change:transform}
 .tag3 .pill{display:flex;align-items:center;gap:5px;background:rgba(14,15,20,.8);border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:1px 9px 1px 7px;font-size:11px;color:#ecebe6;backdrop-filter:blur(4px)}
 .tag3 .pill i{width:6px;height:6px;border-radius:50%;display:inline-block}
 .tag3 .pill b{font-weight:700}
 .tag3 .pill span{color:#b4b8c4}
+.jump{white-space:nowrap;position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:9;background:var(--accent);color:#fff;border:0;border-radius:999px;padding:10px 18px;font-weight:700;box-shadow:0 6px 20px rgba(0,0,0,.45);cursor:pointer;animation:fadein .3s}
+.jump[hidden]{display:none}
+@media (max-width:560px){.tag3 .pill span{display:none}.tag3 .pill{font-size:10px;padding:0 7px 0 5px}.tag3 .tool{font-size:9px}.vt{font-size:10px;padding:2px 8px}}
 .tag3 .tool{order:3;font:600 10px var(--mono);background:#2f6fd6;color:#fff;border-radius:999px;padding:1px 8px;box-shadow:0 0 0 1px rgba(255,255,255,.15) inset}
 .tag3 .tool:empty,.tag3 .bub:empty{display:none}
 .tag3 .bub{background:rgba(30,32,40,.92);color:#fff;border-radius:10px;padding:0 7px;font-size:12px;font-weight:700;line-height:18px;border:1px solid rgba(255,255,255,.12)}
@@ -267,6 +271,7 @@ aside{display:flex;flex-direction:column;gap:12px;position:sticky;top:12px}
   </div>
 </div>
 <svg id="wire" aria-hidden="true"></svg>
+<button type="button" class="jump" id="jump" hidden>📄 看交付成果</button>
 <div id="tvDlg" class="ovl" hidden>
   <div class="dlg wide" role="dialog" aria-modal="true" aria-labelledby="tvTitle">
     <h3 id="tvTitle">辦公室電視</h3>
@@ -723,7 +728,7 @@ function build3D(THREE,RBG){
   const envGeo=new RBG(0.28,0.05,0.2,1,0.02);
   /* ---------- size, interaction ---------- */
   const v=new THREE.Vector3();
-  function size(){const w=stage.clientWidth;if(!w)return;const h=Math.round(w*H/W);renderer.setSize(w,h);placeTV();}
+  function size(){const w=stage.clientWidth;if(!w)return;const h=Math.round(w*H/W);renderer.setSize(w,h,false);placeTV();}
   new ResizeObserver(size).observe(stage);
   const ray=new THREE.Raycaster(),mouse=new THREE.Vector2();
   function hitTV(e){const r=el.getBoundingClientRect();mouse.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);ray.setFromCamera(mouse,cam);return ray.intersectObject(tvScreen).length>0;}
@@ -798,9 +803,9 @@ function refreshCards(){
   TEAM.forEach(a=>{const s=STATUS[a.status],c=a.card;c.querySelector('.dot').style.background=s.c;c.querySelector('.stt').textContent=s.t;
     c.querySelector('.tk').textContent=a.task||(a.status==='idle'?'等你派工':'');c.querySelector('.bar i').style.width=Math.round(a.progress*100)+'%';
     c.querySelector('.bar i').style.background=s.c;c.classList.toggle('stuck',a.status==='stuck');{const ac=cfg.agents[a.id];const md=c.querySelector('.mdl');md.querySelector('.dot').style.background=PROVIDERS[ac.p].c;md.querySelector('span:last-child').textContent=modelLabel(a);md.title=modelLabel(a);}c.classList.toggle('active',viewing===a.id);
-    const mine=deliverables.map((d,i)=>({d,i})).filter(x=>x.d.who===a.id);const fk=mine.map(x=>x.i+(x.d.video?'v':'')).join(',');
-    if(c._fk!==fk){c._fk=fk;const fl=c.querySelector('.fl');fl.innerHTML=mine.map(x=>`<button type="button" class="fbtn" data-i="${x.i}">📄 ${esc(x.d.video?'成片.'+(x.d.mime&&x.d.mime.includes('mp4')?'mp4':'webm'):(x.d.title+'.md'))}</button>`).join('');
-      fl.querySelectorAll('.fbtn').forEach(f=>f.onclick=()=>{viewing='d'+f.dataset.i;renderOut();refreshCards();});}});
+    const mine=deliverables.map((d,i)=>({d,i})).filter(x=>x.d.who===a.id);const fk=mine.map(x=>x.i+(x.d.video?'v':'')+(x.d.ver||1)).join(',');
+    if(c._fk!==fk){c._fk=fk;const fl=c.querySelector('.fl');fl.innerHTML=mine.map(x=>`<button type="button" class="fbtn" data-i="${x.i}">📄 ${esc(x.d.video?'成片.'+(x.d.mime&&x.d.mime.includes('mp4')?'mp4':'webm'):(x.d.title+(x.d.ver>1?'_v'+x.d.ver:'')+'.md'))}</button>`).join('');
+      fl.querySelectorAll('.fbtn').forEach(f=>f.onclick=()=>{viewing='d'+f.dataset.i;renderOut();refreshCards();if(narrow())jumpToOut();});}});
   const n={work:0,out:0,idle:0,stuck:0};TEAM.forEach(a=>{if(BUSY.has(a.status))n.work++;else if(a.status==='stuck')n.stuck++;else if(a.status==='idle')n.idle++;});
   n.out=deliverables.length;
   document.getElementById('stats').innerHTML=[['工作中',n.work,'#5aa2ff'],['產出',n.out,'#4fd1a9'],['待命',n.idle,'#6b7080'],['卡住',n.stuck,'#ff5b4f']]
@@ -831,9 +836,13 @@ function md(src){
   close();return html;}
 const outEl=document.getElementById('out'),tabsEl=document.getElementById('tabs');
 function renderTabs(){
-  const tabs=[{k:'final',t:'最終交付'}].concat(deliverables.map((d,i)=>({k:'d'+i,t:`${d.who}・${d.title}`})));
+  const tabs=[{k:'final',t:'最終交付'}].concat(deliverables.map((d,i)=>({k:'d'+i,t:`${d.who}・${d.title}${d.ver>1?` v${d.ver}`:''}`})));
   tabsEl.innerHTML=tabs.map(x=>`<button type="button" data-k="${x.k}" class="${viewing===x.k?'on':''}">${esc(x.t)}</button>`).join('');
   tabsEl.querySelectorAll('button').forEach(b=>b.onclick=()=>{viewing=b.dataset.k;renderOut();});}
+const narrow=()=>matchMedia('(max-width:980px)').matches;
+function jumpToOut(){document.getElementById('out').closest('.panel').scrollIntoView({behavior:'smooth',block:'start'});document.getElementById('jump').hidden=true;}
+document.getElementById('jump').onclick=jumpToOut;
+new IntersectionObserver(es=>{if(es.some(e=>e.isIntersecting))document.getElementById('jump').hidden=true;},{threshold:.25}).observe(document.getElementById('out'));
 function renderOut(){renderTabs();
   if(viewing==='final'){outEl.innerHTML=finalText?md(finalText):'<p class="empty">派一個任務，產出會出現在這裡。點下方員工卡片可以看個別成員的產出。</p>';}
   else if(viewing.startsWith('d')){const d=deliverables[+viewing.slice(1)];
@@ -842,7 +851,7 @@ function renderOut(){renderTabs();
       document.getElementById('vTv').onclick=()=>tvPlayLocal(d.video);}
     else outEl.innerHTML=d?md(d.text||'（撰寫中…）'):'';}
   else{const a=byId[viewing];outEl.innerHTML=`<p class="empty">${a.id}（${a.role}）：${esc(a.desc)}。這次還沒有產出。</p>`;}}
-function showAgent(a){const i=deliverables.map(d=>d.who).lastIndexOf(a.id);viewing=i>=0?'d'+i:a.id;renderOut();refreshCards();}
+function showAgent(a){const i=deliverables.map(d=>d.who).lastIndexOf(a.id);viewing=i>=0?'d'+i:a.id;renderOut();refreshCards();if(i>=0&&narrow())jumpToOut();}
 document.getElementById('copy').onclick=async e=>{const t=viewing==='final'?finalText:(viewing.startsWith('d')?deliverables[+viewing.slice(1)]?.text:'');
   try{await navigator.clipboard.writeText(t||'');e.target.textContent='已複製';}catch{e.target.textContent='無法複製';}setTimeout(()=>e.target.textContent='複製',1500);};
 
@@ -862,7 +871,7 @@ function updateWire(){if(!wireT)return;const svg=document.getElementById('wire')
 
 function handoff(f,t,label){const wrap=document.getElementById('cardsWrap'),svg=document.getElementById('arcs');if(!byId[f]||!byId[t]||f===t)return;
   const A=byId[f].card.getBoundingClientRect(),B=byId[t].card.getBoundingClientRect(),R=wrap.getBoundingClientRect();
-  const x1=A.left+A.width/2-R.left,y1=A.top-R.top+2,x2=B.left+B.width/2-R.left,y2=B.top-R.top+2;const h=Math.max(34,Math.abs(x2-x1)*.35+Math.abs(y2-y1)*.5);
+  const x1=A.left+A.width/2-R.left,y1=A.top-R.top+2,x2=B.left+B.width/2-R.left,y2=B.top-R.top+2;const h=Math.min(70,Math.max(30,Math.abs(x2-x1)*.3+Math.abs(y2-y1)*.25));
   const p=document.createElementNS('http://www.w3.org/2000/svg','path');p.setAttribute('d',`M${x1},${y1} C${x1},${Math.min(y1,y2)-h} ${x2},${Math.min(y1,y2)-h} ${x2},${y2}`);
   p.setAttribute('class','arc');p.style.stroke=byId[f].acc;svg.appendChild(p);const len=p.getTotalLength();
   p.style.strokeDasharray=len;p.style.strokeDashoffset=len;p.getBoundingClientRect();p.style.transition='stroke-dashoffset 1.1s ease, opacity .8s 2.8s';p.style.strokeDashoffset='0';p.style.opacity='0';
@@ -1298,11 +1307,28 @@ const workPrompt=(a,cmd,st,ctxs,notes)=>`你是 ${a.id}，AI 團隊中的${a.rol
 ${notes?`老闆補充：${notes}\n`:''}${st.use_files!==false&&curFiles.length?filesFull():''}${a.id==='Jackson'&&curNarr.length?`\n老闆寫好的旁白（每行一個鏡頭，旁白和字幕會照原文，你只要規劃畫面；有「導演指示」的鏡頭必須照指示演出）：\n${curNarr.map((x,i)=>`${i+1}. ${x.text}${x.note?`　［導演指示：${x.note}］`:''}`).join('\n')}\n`:''}${ctxs.length?`\n同事已完成的產出（請以此為基礎）：\n${ctxs.map(c=>`### ${c.who}・${c.title}\n${c.text.slice(0,2500)}`).join('\n\n')}\n`:''}
 請直接交出成果：繁體中文（台灣用語），Markdown 格式，具體可用，約 300 到 600 字${curFiles.length?'；引用附件的數字時要寫清楚出處（檔名、工作表或欄位），不要編造附件裡沒有的數字':''}。你沒有上網能力，研究類內容依你的知識整理，並標出需要再查證的數字。
 如果缺少關鍵資訊導致完全無法完成，只輸出一行「NEED_USER: 你要問老闆的問題｜選項A｜選項B」（給 2 到 3 個具體選項讓老闆直接選，用｜分隔）。`;
-const reviewPrompt=(cmd,ds)=>`你是 John，AI 團隊的審查。老闆的任務：「${cmd}」
-以下是團隊產出：
-${ds.map(d=>`### ${d.who}・${d.title}\n${d.text.slice(0,3000)}`).join('\n\n')}
+const MAX_REV=2;
+const reviewPrompt=(cmd,ds,round)=>{const names=[...new Set(ds.map(d=>d.who))];return `你是 John，AI 團隊的審查。老闆的任務：「${cmd}」
+${round?`這是第 ${round+1} 輪審查：被退回的成員已經依你上一輪的意見修正過了。除非還有會影響品質的嚴重問題，否則請判定可以交付。\n`:''}以下是團隊產出：
+${ds.map(d=>`### ${d.who}・${d.title}${d.ver>1?`（第 ${d.ver} 版）`:''}\n${(d.text||'').slice(0,3000)}`).join('\n\n')}
 
-請用繁體中文、Markdown 給審查意見：先給「整體評分 x/10」，再列出最多 5 點具體問題或風險（含要怎麼改），最後一行說明是否可以交付。精簡，200 到 350 字。`;
+請用繁體中文、Markdown 給審查意見：先給「整體評分 x/10」，再列出最多 5 點具體問題或風險（含要怎麼改），最後一行說明是否可以交付。精簡，200 到 350 字。
+
+寫完意見後，另起幾行給系統讀（老闆看不到，格式要完全照做）：
+- 可以交付：只寫一行 VERDICT: PASS
+- 需要修改：先寫一行 VERDICT: REVISE，接著每位要修改的成員各一行：REVISE: 成員名｜具體要改什麼
+成員名只能是：${names.join('、')}。只有真的會影響品質的問題才退回（例如事實錯誤、漏掉老闆要求、前後矛盾、明顯不能用）；小建議寫在意見裡就好，不要退回。`;};
+const revisePrompt=(a,cmd,slot,fb,notes)=>`你是 ${a.id}，AI 團隊中的${a.role}。專長：${a.desc}。
+老闆交代的整體任務：「${cmd}」
+你之前交出的「${slot.title}」被審查 John 退回修正。
+
+你原本的版本：
+${(slot.text||'').slice(0,6000)}
+
+John 要你修正的地方：
+${fb.map(x=>'- '+x).join('\n')}
+${notes?`\n老闆補充：${notes}\n`:''}${slot.st&&slot.st.use_files!==false&&curFiles.length?filesFull():''}
+請交出「修正後的完整版本」（不是只寫修改的部分），繁體中文（台灣用語）、Markdown 格式。只修正被指出的問題，其他沒問題的內容保持原樣。不要寫修改說明或道歉。`;
 const finalPrompt=(cmd,ds,rv)=>`你是 Alfred，團隊主管。老闆的任務：「${cmd}」
 團隊產出：
 ${ds.map(d=>`### ${d.who}・${d.title}\n${d.text.slice(0,3000)}`).join('\n\n')}
@@ -1354,7 +1380,7 @@ async function mission(cmd){
       const ctxs=(s.depends_on||[]).map(d=>deliverables.find(x=>x.idx===d)).filter(Boolean);
       await a.arrive;
       ctxs.forEach((c,k)=>setTimeout(()=>handoff(c.who,a.id,c.title),k*300));
-      setStatus(a,'work',s.title);a.progress=.03;if(mode==='live')log(a.id,`用 ${modelLabel(a)} 開工：${s.title}`);const slot={idx:i,who:a.id,title:s.title,text:''};
+      setStatus(a,'work',s.title);a.progress=.03;if(mode==='live')log(a.id,`用 ${modelLabel(a)} 開工：${s.title}`);const slot={idx:i,who:a.id,title:s.title,text:'',st:s,ver:1};
       let extra='';
       try{for(let k=0;k<3;k++){
         const t=await ai(a,workPrompt(a,cmd,s,ctxs,[notes,extra].filter(Boolean).join('；')),p=>a.progress=p);
@@ -1372,14 +1398,39 @@ async function mission(cmd){
   if(!deliverables.length){log('Alfred','沒有任何產出，任務中止。');setStatus(A,'err','沒有產出');return end();}
   // review
   const E=byId.John;sendPacket(A,E,E.acc);setStatus(E,'walk','審查產出');await (E.arrive=new Promise(r=>toDesk(E,r)));setStatus(E,'review','審查 '+deliverables.length+' 份產出');[...new Set(deliverables.map(d=>d.who))].forEach((w,k)=>setTimeout(()=>handoff(w,'John'),k*250));
-  let rv;try{rv=await ai(E,reviewPrompt(cmd,deliverables),p=>E.progress=p);}catch(e){rv=null;log('John','審查失敗，略過審查。');}
-  if(rv===null){await fakeRun(p=>E.progress=p,3000);rv='## 審查意見\n**整體評分 7/10**\n- 數字需要查證來源\n- 文案和視覺語氣要統一\n- 補上明確的行動呼籲\n\n可以交付，建議依上面三點微調。';}
-  deliverables.push({idx:-1,who:'John',title:'審查意見',text:rv});E.progress=1;setStatus(E,'done','審查完成');log('John','審查完成');renderOut();
+  let rv='',round=0;
+  while(true){
+    const work=deliverables.filter(d=>d.who!=='John');E.progress=.05;
+    let raw;try{raw=await ai(E,reviewPrompt(cmd,work,round),p=>E.progress=p);}catch(e){raw=null;log('John','審查失敗，略過審查。');}
+    if(raw===null){await fakeRun(p=>E.progress=p,3000);raw='## 審查意見\n**整體評分 7/10**\n- 數字需要查證來源\n- 文案和視覺語氣要統一\n- 補上明確的行動呼籲\n\n可以交付，建議依上面三點微調。\nVERDICT: PASS';}
+    const verdict=(/VERDICT\s*[:：]\s*(PASS|REVISE)/i.exec(raw)||[])[1]||'PASS';
+    const asks={};for(const m of raw.matchAll(/^\s*[-*]?\s*REVISE\s*[:：]\s*([A-Za-z]+)\s*[｜|]\s*(.+)$/gim)){const who=Object.keys(byId).find(k=>k.toLowerCase()===m[1].toLowerCase());
+      if(who&&who!=='John'&&who!=='Alfred'&&work.some(d=>d.who===who&&!d.video&&d.text))(asks[who]=asks[who]||[]).push(m[2].trim());}
+    rv=raw.replace(/^\s*[-*]?\s*(VERDICT|REVISE)\s*[:：].*$/gim,'').trim();
+    deliverables.push({idx:-1,who:'John',title:round?`審查意見（第 ${round+1} 輪）`:'審查意見',text:rv});renderOut();
+    const who=Object.keys(asks);
+    if(verdict.toUpperCase()!=='REVISE'||!who.length){log('John',round?`第 ${round+1} 輪審查通過`:'審查通過');break;}
+    if(round>=MAX_REV){log('John',`已經退回 ${MAX_REV} 輪，剩下的問題交給 Alfred 整合時處理`);break;}
+    round++;setStatus(E,'wait',`等 ${who.join('、')} 修正`);E.progress=0;
+    log('John',`退回 ${who.join('、')} 修正（第 ${round} 輪）`);
+    await Promise.all(who.map(async(id,k)=>{const a=byId[id];setTimeout(()=>handoff('John',id),k*250);sendPacket(E,a,E.acc);
+      const slot=[...work].reverse().find(d=>d.who===id&&!d.video&&d.text);
+      if(!a.arrive||a.mode!=='desk')await (a.arrive=new Promise(r=>toDesk(a,r)));
+      setStatus(a,'work',`依審查修正：${slot.title}`);a.progress=.05;
+      if(id==='Jackson'&&deliverables.some(d=>d.who==='Jackson'&&d.video))log('Jackson','只修正分鏡文字；影片要花錢重新生成，不會自動重做');
+      try{const t=await ai(a,revisePrompt(a,cmd,slot,asks[id],notes),p=>a.progress=p);
+        if(t===null){await fakeRun(p=>a.progress=p,2500);}else if(t.trim())slot.text=t;
+        slot.ver=(slot.ver||1)+1;a.progress=1;setStatus(a,'done',`${slot.title}（第 ${slot.ver} 版）`);log(id,`交出「${slot.title}」第 ${slot.ver} 版`);
+        handoff(id,'John');}
+      catch(e){setStatus(a,'err',slot.title);log(id,`修正失敗：${e.message||e}`);}
+      renderOut();}));
+    setStatus(E,'review',`第 ${round+1} 輪審查`);}
+  E.progress=1;setStatus(E,'done',round?`審查完成（修正 ${round} 輪）`:'審查完成');renderOut();
   // final
   handoff('John','Alfred','審查意見');setStatus(A,'plan','整合交付');A.progress=.05;
   let fin;try{fin=await ai(A,finalPrompt(cmd,deliverables.filter(d=>d.who!=='John'),rv),p=>A.progress=p);}catch(e){fin=null;log('Alfred','整合失敗，改為直接附上各成員產出。');}
   if(fin===null)fin=`## 交付摘要\n任務「${cmd}」已完成，以下是各成員產出（示範模式）。\n\n`+deliverables.map(d=>d.text).join('\n\n');
-  finalText=fin;viewing='final';A.progress=1;setStatus(A,'done','已交付');log('Alfred','交付完成，請過目。');renderOut();
+  finalText=fin;viewing='final';A.progress=1;if(narrow()){const j=document.getElementById('jump');j.textContent='📄 交付完成・看成果';j.hidden=false;}setStatus(A,'done','已交付');log('Alfred','交付完成，請過目。');renderOut();
   end();}
 function end(){running=false;document.getElementById('dispatch').disabled=false;
   setTimeout(()=>{if(running)return;TEAM.forEach(a=>{if(a.status!=='stuck'){release(a);a.sitting=false;a.status='idle';}});refreshCards();},6000);}
